@@ -42,7 +42,9 @@ func (l *Logger) log(ctx context.Context, level string, msg string) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	_, _ = l.mongoCollection.InsertOne(ctx, entry)
+	if _, err := l.mongoCollection.InsertOne(ctx, entry); err != nil {
+		l.stdLogger.Printf("[WARN] Failed to persist log to MongoDB: %v", err)
+	}
 }
 
 // Info writes an informational log entry.

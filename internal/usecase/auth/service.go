@@ -50,7 +50,10 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 		return "", errors.New("invalid credentials")
 	}
 
-	tokenString, expires := s.signToken(user.ID.Hex())
+	tokenString, expires, err := s.signToken(user.ID.Hex())
+	if err != nil {
+		return "", err
+	}
 	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
 	if err := s.tokens.Save(ctx, record); err != nil {
 		return "", err
@@ -104,7 +107,7 @@ func (s *Service) ValidateToken(ctx context.Context, tokenString string) (string
 	return "", errors.New("invalid token claims")
 }
 
-func (s *Service) signToken(userID string) (string, time.Time) {
+func (s *Service) signToken(userID string) (string, time.Time, error) {
 	expiresAt := time.Now().Add(24 * time.Hour)
 	claims := jwt.MapClaims{
 		"sub": userID,
@@ -112,6 +115,9 @@ func (s *Service) signToken(userID string) (string, time.Time) {
 		"iat": time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, _ := token.SignedString([]byte(s.secret))
-	return tokenString, expiresAt
+	tokenString, err := token.SignedString([]byte(s.secret))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return tokenString, expiresAt, nil
 }

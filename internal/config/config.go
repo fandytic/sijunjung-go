@@ -14,10 +14,14 @@ type Config struct {
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() Config {
+	secret := os.Getenv("AUTH_SECRET")
+	if secret == "" {
+		panic("AUTH_SECRET environment variable must be set")
+	}
 	cfg := Config{
 		MongoURI:   envOrDefault("MONGO_URI", "mongodb://localhost:27017"),
-		Database:   envOrDefault("MONGO_DB", "coffeechat"),
-		AuthSecret: envOrDefault("AUTH_SECRET", "changeme"),
+		Database:   envOrDefault("MONGO_DB", "sijunjunggo"),
+		AuthSecret: secret,
 		HTTPPort:   envOrDefault("HTTP_PORT", "8080"),
 	}
 	return cfg

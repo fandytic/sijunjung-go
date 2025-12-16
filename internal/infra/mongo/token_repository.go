@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -45,7 +46,7 @@ func (r *TokenRepository) IsValid(ctx context.Context, token string) (bool, stri
 	var doc model.Token
 	err := r.collection.FindOne(ctx, bson.M{"token": token}).Decode(&doc)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return false, "", nil
 		}
 		return false, "", err

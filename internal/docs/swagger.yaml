@@ -1,13 +1,14 @@
 swagger: "2.0"
 info:
-  description: API documentation for the Coffee Chat service demonstrating authentication and protected routes.
-  title: Coffee Chat Service
+  description: API documentation for the Sijunjung Go service demonstrating authentication and protected routes.
+  title: Sijunjung Go Service
   version: "1.0"
 basePath: /api
 schemes:
+  - https
   - http
 paths:
-  /coffee:
+  /sijunjung:
     get:
       security:
         - BearerAuth: []

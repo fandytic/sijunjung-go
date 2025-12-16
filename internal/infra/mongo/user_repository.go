@@ -29,7 +29,7 @@ func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
 
 	_, err := r.collection.InsertOne(ctx, user)
 	if mongo.IsDuplicateKeyError(err) {
-		return errors.New("user already exists")
+		return errors.New("user with this email already exists")
 	}
 	return err
 }

@@ -17,5 +17,10 @@ func Connect(uri string) (*mongo.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err := client.Ping(ctx, nil); err != nil {
+		return nil, err
+	}
+
 	return client, nil
 }

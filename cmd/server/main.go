@@ -1,15 +1,5 @@
 package main
 
-// Coffee Chat Service API.
-//
-// @title           Coffee Chat Service
-// @version         1.0
-// @description     API documentation for the Coffee Chat service demonstrating authentication and protected routes.
-// @BasePath        /api
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description      Provide the bearer token as `Bearer <token>`.
 //go:generate swag init -g cmd/server/main.go -o internal/docs
 
 import (
@@ -46,6 +36,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to connect to mongo: %v", err)
 	}
+	defer func() {
+		if err := client.Disconnect(context.Background()); err != nil {
+			log.Printf("error disconnecting mongo: %v", err)
+		}
+	}()
 	db := client.Database(cfg.Database)
 
 	appLogger := logging.New(db)
@@ -72,7 +67,7 @@ func main() {
 			private.Use(authMiddleware.Handler)
 			private.Post("/logout", authHandler.Logout)
 			private.Get("/me", authHandler.CurrentUser)
-			private.Get("/coffee", delivery.CoffeeHandler)
+			private.Get("/sijunjung", delivery.SijunjungHandler)
 		})
 	})
 

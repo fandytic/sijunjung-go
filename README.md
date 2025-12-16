@@ -1,6 +1,6 @@
-# Sijunjung Coffee Chat Service
+# Sijunjung Go Service
 
-A Go + MongoDB starter service inspired by the coffee-chat-service reference. It exposes bearer-token authentication with login/logout, persists logs to MongoDB, and includes a sample protected API endpoint.
+A Go + MongoDB starter service inspired by the sijunjung-go-service reference. It exposes bearer-token authentication with login/logout, persists logs to MongoDB, and includes a sample protected API endpoint.
 
 The project follows a simple Clean Architecture layout:
 - `internal/domain` holds entities and repository interfaces.
@@ -15,7 +15,7 @@ The project follows a simple Clean Architecture layout:
 ## Configuration
 Environment variables are read from the host and can be sourced via a local `.env` file (copy `.env.example` to `.env`).
 - `MONGO_URI` (default `mongodb://localhost:27017`)
-- `MONGO_DB` (default `coffeechat`)
+- `MONGO_DB` (default `sijunjunggo`)
 - `AUTH_SECRET` (default `changeme`)
 - `HTTP_PORT` (default `8080`)
 
@@ -42,8 +42,8 @@ Environment variables are read from the host and can be sourced via a local `.en
 ## Docker
 Build and run the service in a container:
 ```bash
-docker build -t coffee-chat .
-docker run --rm -p 8080:8080 --env-file .env coffee-chat
+docker build -t sijunjung-go .
+docker run --rm -p 8080:8080 --env-file .env sijunjung-go
 ```
 
 ## CI/CD
@@ -58,6 +58,6 @@ GitHub Actions workflow `.github/workflows/ci.yml` generates Swagger files from 
 - `POST /api/login` – obtain bearer token.
 - `POST /api/logout` – revoke token (requires `Authorization: Bearer <token>`).
 - `GET /api/me` – echo authenticated user id.
-- `GET /api/coffee` – sample protected endpoint.
+- `GET /api/sijunjung` – sample protected endpoint.
 
 Logs are written to stdout and stored in the `logs` MongoDB collection.
