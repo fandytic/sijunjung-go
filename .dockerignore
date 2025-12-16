@@ -1,0 +1,15 @@
+# Ignore Git metadata
+.git
+.gitignore
+
+# Build artifacts
+bin
+dist
+*.log
+
+# Editor files
+.vscode
+.idea
+
+# Local environment files
+.env

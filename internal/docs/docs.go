@@ -1,0 +1,237 @@
+package docs
+
+import "github.com/swaggo/swag"
+
+// NOTE: This file mirrors the output of `swag init` so the project builds in environments
+// where the generator cannot run (such as offline sandboxes). Use `go generate ./...` to
+// refresh documentation after adjusting annotations.
+
+const docTemplate = `{
+    "swagger": "2.0",
+    "info": {
+        "description": "API documentation for the Coffee Chat service demonstrating authentication and protected routes.",
+        "title": "Coffee Chat Service",
+        "version": "1.0"
+    },
+    "basePath": "/api",
+    "schemes": [
+        "http"
+    ],
+    "paths": {
+        "/coffee": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a simple message to show the service is running.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Sample protected endpoint",
+                "tags": [
+                    "examples"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "description": "Authenticate with email and password to obtain a bearer token for subsequent requests.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Login and receive bearer token",
+                "tags": [
+                    "auth"
+                ],
+                "parameters": [
+                    {
+                        "description": "Login payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Invalidate the provided bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Logout and revoke bearer token",
+                "tags": [
+                    "auth"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the identifier of the authenticated user from the bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get current user id",
+                "tags": [
+                    "users"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    }
+                }
+            }
+        },
+        "/register": {
+            "post": {
+                "description": "Create a user account with an email and password.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Register a new user",
+                "tags": [
+                    "auth"
+                ],
+                "parameters": [
+                    {
+                        "description": "Registration payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}`
+
+type swaggerDoc struct{}
+
+// ReadDoc allows Swagger UI to fetch the specification.
+func (swaggerDoc) ReadDoc() string {
+	return docTemplate
+}
+
+func init() {
+	swag.Register(swag.Name, &swaggerDoc{})
+}
