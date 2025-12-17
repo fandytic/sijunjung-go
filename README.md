@@ -16,7 +16,7 @@ The project follows a simple Clean Architecture layout:
 Environment variables are read from the host and can be sourced via a local `.env` file (copy `.env.example` to `.env`).
 - `MONGO_URI` (default `mongodb://localhost:27017`)
 - `MONGO_DB` (default `sijunjunggo`)
-- `AUTH_SECRET` (default `changeme`)
+- `AUTH_SECRET` (required, no default)
 - `HTTP_PORT` (default `8080`)
 
 ## Running locally
