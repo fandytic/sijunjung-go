@@ -22,57 +22,48 @@ func NewAuthHandler(service *auth.Service) *AuthHandler {
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req model.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	user, err := h.service.Register(r.Context(), req.Email, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	responseData, err := json.Marshal(user)
-	if err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	w.Write(responseData)
+
+	respondSuccess(w, http.StatusCreated, user, "")
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req model.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	token, err := h.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		respondError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	if err := json.NewEncoder(w).Encode(map[string]string{"token": token}); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
+
+	respondSuccess(w, http.StatusOK, map[string]string{"token": token}, "")
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := extractToken(r)
 	if err := h.service.Logout(r.Context(), token); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+
+	respondSuccess(w, http.StatusOK, map[string]any{}, "logout successful")
 }
 
 func (h *AuthHandler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(ContextUserIDKey)
-	if err := json.NewEncoder(w).Encode(map[string]any{"user_id": userID}); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	respondSuccess(w, http.StatusOK, map[string]any{"user_id": userID}, "")
 }
 
 func extractToken(r *http.Request) string {
