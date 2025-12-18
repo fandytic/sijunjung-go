@@ -24,19 +24,19 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		ctx := r.Context()
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			http.Error(w, "missing authorization header", http.StatusUnauthorized)
+			respondError(w, http.StatusUnauthorized, "missing authorization header")
 			return
 		}
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+			respondError(w, http.StatusUnauthorized, "invalid authorization header")
 			return
 		}
 		tokenString := parts[1]
 
 		userID, err := m.service.ValidateToken(ctx, tokenString)
 		if err != nil {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			respondError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 
