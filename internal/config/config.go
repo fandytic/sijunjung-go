@@ -10,11 +10,10 @@ type Config struct {
 	Database          string
 	AuthSecret        string
 	HTTPPort          string
-	SMTPHost          string
-	SMTPPort          string
-	SMTPUser          string
-	SMTPPass          string
-	SMTPFrom          string
+	MailjetAPIKey     string
+	MailjetSecretKey  string
+	MailjetFromName   string
+	MailjetFromEmail  string
 	GoogleClientID    string
 	FacebookAppID     string
 	FacebookAppSecret string
@@ -31,11 +30,10 @@ func Load() Config {
 		Database:          envOrDefault("MONGO_DB", "sijunjunggo"),
 		AuthSecret:        secret,
 		HTTPPort:          envOrDefault("HTTP_PORT", "8080"),
-		SMTPHost:          envOrDefault("SMTP_HOST", "smtp.gmail.com"),
-		SMTPPort:          envOrDefault("SMTP_PORT", "587"),
-		SMTPUser:          os.Getenv("SMTP_USER"),
-		SMTPPass:          os.Getenv("SMTP_PASS"),
-		SMTPFrom:          envOrDefault("SMTP_FROM", "noreply@sijunjung.go"),
+		MailjetAPIKey:     os.Getenv("MAILJET_API_KEY"),
+		MailjetSecretKey:  os.Getenv("MAILJET_SECRET_KEY"),
+		MailjetFromName:   envOrDefault("MAILJET_FROM_NAME", "Sijunjung Go"),
+		MailjetFromEmail:  envOrDefault("MAILJET_FROM_EMAIL", "noreply@sijunjung.go"),
 		GoogleClientID:    os.Getenv("GOOGLE_CLIENT_ID"),
 		FacebookAppID:     os.Getenv("FACEBOOK_APP_ID"),
 		FacebookAppSecret: os.Getenv("FACEBOOK_APP_SECRET"),

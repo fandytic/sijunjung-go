@@ -58,7 +58,7 @@ func main() {
 	userRepo := mongorepo.NewUserRepository(db)
 	tokenRepo := mongorepo.NewTokenRepository(db)
 	otpRepo := mongorepo.NewOTPRepository(db)
-	emailService := email.NewSMTPService(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
+	emailService := email.NewMailjetService(cfg.MailjetAPIKey, cfg.MailjetSecretKey, cfg.MailjetFromName, cfg.MailjetFromEmail)
 
 	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, cfg.AuthSecret, cfg.GoogleClientID, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
 
