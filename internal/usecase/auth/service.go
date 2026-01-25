@@ -121,26 +121,26 @@ func (s *Service) verifyGoogleToken(ctx context.Context, idToken string) (*Googl
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.New("failed to verify Google token")
+		return nil, errors.New("Gagal memverifikasi akun Google")
 	}
 	defer resp.Body.Close()
 
 	var tokenInfo GoogleTokenInfo
 	if err := json.NewDecoder(resp.Body).Decode(&tokenInfo); err != nil {
-		return nil, errors.New("failed to parse Google token response")
+		return nil, errors.New("Gagal memproses data dari Google")
 	}
 
 	if tokenInfo.Error != "" {
-		return nil, errors.New("invalid Google token: " + tokenInfo.Error)
+		return nil, errors.New("Token Google tidak valid")
 	}
 
 	// Verify the token is for our app
 	if s.googleClientID != "" && tokenInfo.Aud != s.googleClientID {
-		return nil, errors.New("Google token not issued for this application")
+		return nil, errors.New("Token Google tidak sesuai dengan aplikasi ini")
 	}
 
 	if tokenInfo.EmailVerified != "true" {
-		return nil, errors.New("Google email not verified")
+		return nil, errors.New("Email Google belum diverifikasi")
 	}
 
 	return &tokenInfo, nil
@@ -156,7 +156,7 @@ func (s *Service) FacebookAuth(ctx context.Context, accessToken string) (string,
 	}
 
 	if userInfo.Email == "" {
-		return "", false, errors.New("email permission not granted")
+		return "", false, errors.New("Izin akses email Facebook tidak diberikan")
 	}
 
 	// Check if user exists
@@ -205,21 +205,21 @@ func (s *Service) verifyFacebookToken(ctx context.Context, accessToken string) (
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.New("failed to verify Facebook token")
+		return nil, errors.New("Gagal memverifikasi akun Facebook")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		var errResp FacebookErrorResponse
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err == nil && errResp.Error.Message != "" {
-			return nil, errors.New("invalid Facebook token: " + errResp.Error.Message)
+			return nil, errors.New("Token Facebook tidak valid")
 		}
-		return nil, errors.New("invalid Facebook token")
+		return nil, errors.New("Token Facebook tidak valid")
 	}
 
 	var userInfo FacebookUserInfo
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return nil, errors.New("failed to parse Facebook token response")
+		return nil, errors.New("Gagal memproses data dari Facebook")
 	}
 
 	return &userInfo, nil
@@ -253,7 +253,7 @@ func (s *Service) Register(ctx context.Context, fullName, email, password string
 
 	if err := s.email.SendOTP(ctx, email, code); err != nil {
 		s.logger.Error(ctx, "failed to send OTP email: "+err.Error())
-		return errors.New("failed to send verification email")
+		return errors.New("Gagal mengirim email verifikasi")
 	}
 
 	s.logger.Info(ctx, "registered user "+user.Email+" and sent OTP")
@@ -264,19 +264,19 @@ func (s *Service) Register(ctx context.Context, fullName, email, password string
 func (s *Service) VerifyOTP(ctx context.Context, email, code string) (string, error) {
 	otp, err := s.otps.FindByEmail(ctx, email)
 	if err != nil {
-		return "", errors.New("verification code not found")
+		return "", errors.New("Kode verifikasi tidak ditemukan")
 	}
 
 	if otp.Verified {
-		return "", errors.New("email already verified")
+		return "", errors.New("Email sudah diverifikasi sebelumnya")
 	}
 
 	if time.Now().After(otp.ExpiresAt) {
-		return "", errors.New("verification code expired")
+		return "", errors.New("Kode verifikasi sudah kedaluwarsa")
 	}
 
 	if otp.Code != code {
-		return "", errors.New("invalid verification code")
+		return "", errors.New("Kode verifikasi tidak valid")
 	}
 
 	// Mark as verified
@@ -308,19 +308,19 @@ func (s *Service) ResendOTP(ctx context.Context, email string) error {
 	// Check if user exists
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
-		return errors.New("user not found")
+		return errors.New("Email tidak terdaftar")
 	}
 
 	// Check cooldown
 	existingOTP, err := s.otps.FindByEmail(ctx, email)
 	if err == nil && existingOTP != nil {
 		if existingOTP.Verified {
-			return errors.New("email already verified")
+			return errors.New("Email sudah diverifikasi sebelumnya")
 		}
 		timeSinceLastOTP := time.Since(existingOTP.CreatedAt)
 		if timeSinceLastOTP < resendCooldown {
 			remaining := resendCooldown - timeSinceLastOTP
-			return fmt.Errorf("please wait %d seconds before requesting a new code", int(remaining.Seconds()))
+			return fmt.Errorf("Mohon tunggu %d detik sebelum meminta kode baru", int(remaining.Seconds()))
 		}
 	}
 
@@ -340,7 +340,7 @@ func (s *Service) ResendOTP(ctx context.Context, email string) error {
 
 	if err := s.email.SendOTP(ctx, email, code); err != nil {
 		s.logger.Error(ctx, "failed to send OTP email: "+err.Error())
-		return errors.New("failed to send verification email")
+		return errors.New("Gagal mengirim email verifikasi")
 	}
 
 	s.logger.Info(ctx, "resent OTP for user "+email)
@@ -359,7 +359,7 @@ func (s *Service) ResetPassword(ctx context.Context, email string) error {
 	// Check if user exists
 	_, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
-		return errors.New("user not found")
+		return errors.New("Email tidak terdaftar")
 	}
 
 	// Generate random password
@@ -379,7 +379,7 @@ func (s *Service) ResetPassword(ctx context.Context, email string) error {
 	// Send new password via email
 	if err := s.email.SendNewPassword(ctx, email, newPassword); err != nil {
 		s.logger.Error(ctx, "failed to send new password email: "+err.Error())
-		return errors.New("failed to send new password email")
+		return errors.New("Gagal mengirim email password baru")
 	}
 
 	s.logger.Info(ctx, "reset password for user "+email)
@@ -423,7 +423,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 // Logout revokes an existing token.
 func (s *Service) Logout(ctx context.Context, token string) error {
 	if token == "" {
-		return errors.New("missing token")
+		return errors.New("Token tidak ditemukan")
 	}
 	if err := s.tokens.Delete(ctx, token); err != nil {
 		return err
