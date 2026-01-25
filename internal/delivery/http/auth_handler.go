@@ -58,7 +58,7 @@ func NewAuthHandler(service *auth.Service) *AuthHandler {
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req model.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	respondSuccessNoData(w, http.StatusCreated, "verification code sent to "+req.Email)
+	respondSuccessNoData(w, http.StatusCreated, "Kode verifikasi telah dikirim ke "+req.Email)
 }
 
 // VerifyOTP godoc
@@ -82,7 +82,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	var req model.VerifyOTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
@@ -91,7 +91,7 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	respondSuccess(w, http.StatusOK, "email verified successfully", TokenData{Token: token})
+	respondSuccess(w, http.StatusOK, "Email berhasil diverifikasi", TokenData{Token: token})
 }
 
 // ResendOTP godoc
@@ -108,19 +108,19 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) ResendOTP(w http.ResponseWriter, r *http.Request) {
 	var req model.ResendOTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
 	if err := h.service.ResendOTP(r.Context(), req.Email); err != nil {
-		if strings.Contains(err.Error(), "please wait") {
+		if strings.Contains(err.Error(), "Mohon tunggu") {
 			respondError(w, http.StatusTooManyRequests, err.Error())
 			return
 		}
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	respondSuccessNoData(w, http.StatusOK, "verification code sent to "+req.Email)
+	respondSuccessNoData(w, http.StatusOK, "Kode verifikasi telah dikirim ke "+req.Email)
 }
 
 // ResetPassword godoc
@@ -136,7 +136,7 @@ func (h *AuthHandler) ResendOTP(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req model.ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
@@ -144,7 +144,7 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	respondSuccessNoData(w, http.StatusOK, "new password sent to "+req.Email)
+	respondSuccessNoData(w, http.StatusOK, "Password baru telah dikirim ke "+req.Email)
 }
 
 // GoogleAuth godoc
@@ -160,7 +160,7 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GoogleAuth(w http.ResponseWriter, r *http.Request) {
 	var req model.GoogleAuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
@@ -170,9 +170,9 @@ func (h *AuthHandler) GoogleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := "login successful"
+	message := "Login dengan Google berhasil"
 	if isNewUser {
-		message = "registration successful"
+		message = "Registrasi dengan Google berhasil"
 	}
 	respondSuccess(w, http.StatusOK, message, GoogleAuthData{Token: token, IsNewUser: isNewUser})
 }
@@ -190,7 +190,7 @@ func (h *AuthHandler) GoogleAuth(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) FacebookAuth(w http.ResponseWriter, r *http.Request) {
 	var req model.FacebookAuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
@@ -200,9 +200,9 @@ func (h *AuthHandler) FacebookAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := "login successful"
+	message := "Login dengan Facebook berhasil"
 	if isNewUser {
-		message = "registration successful"
+		message = "Registrasi dengan Facebook berhasil"
 	}
 	respondSuccess(w, http.StatusOK, message, FacebookAuthData{Token: token, IsNewUser: isNewUser})
 }
@@ -221,16 +221,16 @@ func (h *AuthHandler) FacebookAuth(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req model.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
 		return
 	}
 
 	token, err := h.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		respondError(w, http.StatusUnauthorized, "invalid credentials")
+		respondError(w, http.StatusUnauthorized, "Email atau password salah")
 		return
 	}
-	respondSuccess(w, http.StatusOK, "login successful", TokenData{Token: token})
+	respondSuccess(w, http.StatusOK, "Login berhasil", TokenData{Token: token})
 }
 
 // Logout godoc
@@ -249,7 +249,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	respondSuccessNoData(w, http.StatusOK, "logout successful")
+	respondSuccessNoData(w, http.StatusOK, "Logout berhasil")
 }
 
 // CurrentUser godoc
@@ -263,7 +263,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Router /api/me [get]
 func (h *AuthHandler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(ContextUserIDKey)
-	respondSuccess(w, http.StatusOK, "current user retrieved", UserData{UserID: userID.(string)})
+	respondSuccess(w, http.StatusOK, "Data user berhasil diambil", UserData{UserID: userID.(string)})
 }
 
 func extractToken(r *http.Request) string {

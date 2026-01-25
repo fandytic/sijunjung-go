@@ -24,19 +24,19 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		ctx := r.Context()
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			respondError(w, http.StatusUnauthorized, "missing authorization header")
+			respondError(w, http.StatusUnauthorized, "Silakan login terlebih dahulu")
 			return
 		}
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			respondError(w, http.StatusUnauthorized, "invalid authorization header")
+			respondError(w, http.StatusUnauthorized, "Format token tidak valid")
 			return
 		}
 		tokenString := parts[1]
 
 		userID, err := m.service.ValidateToken(ctx, tokenString)
 		if err != nil {
-			respondError(w, http.StatusUnauthorized, "invalid token")
+			respondError(w, http.StatusUnauthorized, "Sesi telah berakhir, silakan login kembali")
 			return
 		}
 
