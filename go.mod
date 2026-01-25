@@ -2,7 +2,7 @@ module github.com/example/sijunjung-go
 
 go 1.24.0
 
-toolchain go1.24.11
+toolchain go1.24.12
 
 require (
 	github.com/go-chi/chi/v5 v5.0.11
