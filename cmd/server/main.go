@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
@@ -63,6 +64,14 @@ func main() {
 	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, cfg.AuthSecret, cfg.GoogleClientID, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
 
 	router := chi.NewRouter()
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Access-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
