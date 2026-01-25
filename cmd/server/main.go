@@ -1,5 +1,15 @@
 package main
 
+// @title Sijunjung Go API
+// @version 1.0
+// @description API for Sijunjung Go application with authentication support
+// @host localhost:8080
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter your bearer token in the format: Bearer {token}
+
 //go:generate swag init -g cmd/server/main.go -o internal/docs
 
 import (
@@ -16,6 +26,7 @@ import (
 	"github.com/example/sijunjung-go/internal/config"
 	"github.com/example/sijunjung-go/internal/database"
 	delivery "github.com/example/sijunjung-go/internal/delivery/http"
+	"github.com/example/sijunjung-go/internal/infra/email"
 	"github.com/example/sijunjung-go/internal/infra/logging"
 	mongorepo "github.com/example/sijunjung-go/internal/infra/mongo"
 	"github.com/example/sijunjung-go/internal/usecase/auth"
@@ -46,8 +57,10 @@ func main() {
 	appLogger := logging.New(db)
 	userRepo := mongorepo.NewUserRepository(db)
 	tokenRepo := mongorepo.NewTokenRepository(db)
+	otpRepo := mongorepo.NewOTPRepository(db)
+	emailService := email.NewMailjetService(cfg.MailjetAPIKey, cfg.MailjetSecretKey, cfg.MailjetFromName, cfg.MailjetFromEmail)
 
-	authService := auth.NewService(userRepo, tokenRepo, cfg.AuthSecret, appLogger)
+	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, cfg.AuthSecret, cfg.GoogleClientID, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -61,7 +74,12 @@ func main() {
 
 	router.Route("/api", func(r chi.Router) {
 		r.Post("/register", authHandler.Register)
+		r.Post("/verify-otp", authHandler.VerifyOTP)
+		r.Post("/resend-otp", authHandler.ResendOTP)
+		r.Post("/reset-password", authHandler.ResetPassword)
 		r.Post("/login", authHandler.Login)
+		r.Post("/auth/google", authHandler.GoogleAuth)
+		r.Post("/auth/facebook", authHandler.FacebookAuth)
 
 		r.Group(func(private chi.Router) {
 			private.Use(authMiddleware.Handler)

@@ -1,139 +1,448 @@
-swagger: "2.0"
+basePath: /
+definitions:
+  http.APIErrorResponse:
+    description: Standard API error response
+    properties:
+      code:
+        example: 400
+        type: integer
+      message:
+        example: invalid request
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  http.APIResponse:
+    description: Standard API response
+    properties:
+      code:
+        example: 200
+        type: integer
+      data:
+        type: object
+      message:
+        example: operation successful
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  http.FacebookAuthData:
+    description: Facebook auth data
+    properties:
+      is_new_user:
+        example: true
+        type: boolean
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  http.GoogleAuthData:
+    description: Google auth data
+    properties:
+      is_new_user:
+        example: true
+        type: boolean
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  http.SijunjungData:
+    description: Sijunjung service data
+    properties:
+      status:
+        example: running
+        type: string
+    type: object
+  http.TokenData:
+    description: Token data
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  http.UserData:
+    description: User data
+    properties:
+      user_id:
+        example: 507f1f77bcf86cd799439011
+        type: string
+    type: object
+  model.FacebookAuthRequest:
+    description: Request body for Facebook authentication
+    properties:
+      access_token:
+        example: EAABsbCS1...
+        type: string
+    type: object
+  model.GoogleAuthRequest:
+    description: Request body for Google authentication
+    properties:
+      id_token:
+        example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  model.LoginRequest:
+    description: Request body for user login
+    properties:
+      email:
+        example: sijunjunggo@gmail.com
+        type: string
+      password:
+        example: password123
+        type: string
+    type: object
+  model.RegisterRequest:
+    description: Request body for user registration
+    properties:
+      email:
+        example: sijunjunggo@gmail.com
+        type: string
+      full_name:
+        example: Sijunjung Go
+        type: string
+      password:
+        example: password123
+        type: string
+    type: object
+  model.ResendOTPRequest:
+    description: Request body for resending OTP
+    properties:
+      email:
+        example: sijunjunggo@gmail.com
+        type: string
+    type: object
+  model.ResetPasswordRequest:
+    description: Request body for password reset
+    properties:
+      email:
+        example: sijunjunggo@gmail.com
+        type: string
+    type: object
+  model.VerifyOTPRequest:
+    description: Request body for OTP verification
+    properties:
+      code:
+        example: "5318"
+        type: string
+      email:
+        example: sijunjunggo@gmail.com
+        type: string
+    type: object
+host: localhost:8080
 info:
-  description: API documentation for the Sijunjung Go service demonstrating authentication and protected routes.
-  title: Sijunjung Go Service
+  contact: {}
+  description: API for Sijunjung Go application with authentication support
+  title: Sijunjung Go API
   version: "1.0"
-basePath: /api
-schemes:
-  - https
-  - http
 paths:
-  /sijunjung:
-    get:
-      security:
-        - BearerAuth: []
-      description: Returns a simple message to show the service is running.
-      produces:
-        - application/json
-      summary: Sample protected endpoint
-      tags:
-        - examples
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-            additionalProperties:
-              type: string
-  /login:
+  /api/auth/facebook:
     post:
-      description: Authenticate with email and password to obtain a bearer token for subsequent requests.
       consumes:
-        - application/json
-      produces:
-        - application/json
-      summary: Login and receive bearer token
-      tags:
-        - auth
+      - application/json
+      description: Authenticate or register user with Facebook access token
       parameters:
-        - description: Login payload
-          name: body
-          in: body
-          required: true
-          schema:
-            $ref: '#/definitions/model.LoginRequest'
+      - description: Facebook auth request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.FacebookAuthRequest'
+      produces:
+      - application/json
       responses:
         "200":
-          description: OK
+          description: Authentication successful
           schema:
-            type: object
-            additionalProperties:
-              type: string
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.FacebookAuthData'
+              type: object
         "400":
-          description: Bad Request
+          description: Invalid Facebook token
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Authenticate with Facebook
+      tags:
+      - auth
+  /api/auth/google:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate or register user with Google ID token
+      parameters:
+      - description: Google auth request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.GoogleAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Authentication successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.GoogleAuthData'
+              type: object
+        "400":
+          description: Invalid Google token
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Authenticate with Google
+      tags:
+      - auth
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password to get bearer token
+      parameters:
+      - description: Login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.TokenData'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Login user
+      tags:
+      - auth
+  /api/logout:
+    post:
+      description: Revoke the current bearer token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Invalid or missing token
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
         "401":
           description: Unauthorized
-  /logout:
-    post:
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
       security:
-        - BearerAuth: []
-      description: Invalidate the provided bearer token.
-      produces:
-        - application/json
-      summary: Logout and revoke bearer token
+      - BearerAuth: []
+      summary: Logout user
       tags:
-        - auth
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-  /me:
+      - auth
+  /api/me:
     get:
-      security:
-        - BearerAuth: []
-      description: Returns the identifier of the authenticated user from the bearer token.
+      description: Get the current authenticated user information
       produces:
-        - application/json
-      summary: Get current user id
-      tags:
-        - users
+      - application/json
       responses:
         "200":
-          description: OK
+          description: Current user info
           schema:
-            type: object
-            additionalProperties: {}
-  /register:
-    post:
-      description: Create a user account with an email and password.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      summary: Register a new user
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.UserData'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
       tags:
-        - auth
+      - auth
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with full name, email, and password. Sends
+        OTP to email for verification.
       parameters:
-        - description: Registration payload
-          name: body
-          in: body
-          required: true
-          schema:
-            $ref: '#/definitions/model.RegisterRequest'
+      - description: Registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RegisterRequest'
+      produces:
+      - application/json
       responses:
         "201":
-          description: Created
+          description: User created and OTP sent
           schema:
-            $ref: '#/definitions/model.User'
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
         "400":
-          description: Bad Request
-definitions:
-  model.LoginRequest:
-    type: object
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-  model.RegisterRequest:
-    type: object
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-  model.User:
-    type: object
-    properties:
-      created_at:
-        type: string
-      email:
-        type: string
-      id:
-        type: string
+          description: Invalid request or email already exists
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/resend-otp:
+    post:
+      consumes:
+      - application/json
+      description: Resend the OTP code to email (1 minute cooldown)
+      parameters:
+      - description: Resend OTP request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OTP resent successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: User not found or cooldown active
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+        "429":
+          description: Please wait before requesting new code
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Resend OTP code
+      tags:
+      - auth
+  /api/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset password by sending a new random password to user's email
+      parameters:
+      - description: Reset password request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New password sent to email
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: User not found or invalid request
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Reset password
+      tags:
+      - auth
+  /api/sijunjung:
+    get:
+      description: Check if Sijunjung service is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is running
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.SijunjungData'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check Sijunjung service
+      tags:
+      - sijunjung
+  /api/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verify the OTP code sent to email and get bearer token
+      parameters:
+      - description: Verify OTP request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.TokenData'
+              type: object
+        "400":
+          description: Invalid or expired code
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Verify OTP code
+      tags:
+      - auth
 securityDefinitions:
   BearerAuth:
-    type: apiKey
-    name: Authorization
+    description: 'Enter your bearer token in the format: Bearer {token}'
     in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

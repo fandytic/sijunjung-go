@@ -1,117 +1,717 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "API documentation for the Coffee Chat service demonstrating authentication and protected routes.",
-        "title": "Coffee Chat Service",
+        "description": "API for Sijunjung Go application with authentication support",
+        "title": "Sijunjung Go API",
+        "contact": {},
         "version": "1.0"
     },
-    "basePath": "/api",
-    "schemes": ["http"],
+    "host": "localhost:8080",
+    "basePath": "/",
     "paths": {
-        "/coffee": {
-            "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Returns a simple message to show the service is running.",
-                "produces": ["application/json"],
-                "summary": "Sample protected endpoint",
-                "tags": ["examples"],
+        "/api/auth/facebook": {
+            "post": {
+                "description": "Authenticate or register user with Facebook access token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Authenticate with Facebook",
+                "parameters": [
+                    {
+                        "description": "Facebook auth request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.FacebookAuthRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Authentication successful",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {"type": "string"}
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.FacebookAuthData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Facebook token",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/login": {
+        "/api/auth/google": {
             "post": {
-                "description": "Authenticate with email and password to obtain a bearer token for subsequent requests.",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
-                "summary": "Login and receive bearer token",
-                "tags": ["auth"],
-                "parameters": [{"description": "Login payload", "name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/model.LoginRequest"}}],
+                "description": "Authenticate or register user with Google ID token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Authenticate with Google",
+                "parameters": [
+                    {
+                        "description": "Google auth request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.GoogleAuthRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Authentication successful",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {"type": "string"}
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.GoogleAuthData"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
-                    "400": {"description": "Bad Request"},
-                    "401": {"description": "Unauthorized"}
+                    "400": {
+                        "description": "Invalid Google token",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
                 }
             }
         },
-        "/logout": {
+        "/api/login": {
             "post": {
-                "security": [{"BearerAuth": []}],
-                "description": "Invalidate the provided bearer token.",
-                "produces": ["application/json"],
-                "summary": "Logout and revoke bearer token",
-                "tags": ["auth"],
+                "description": "Authenticate user with email and password to get bearer token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login user",
+                "parameters": [
+                    {
+                        "description": "Login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "204": {"description": "No Content"},
-                    "400": {"description": "Bad Request"}
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
                 }
             }
         },
-        "/me": {
+        "/api/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revoke the current bearer token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Logout user",
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/me": {
             "get": {
-                "security": [{"BearerAuth": []}],
-                "description": "Returns the identifier of the authenticated user from the bearer token.",
-                "produces": ["application/json"],
-                "summary": "Get current user id",
-                "tags": ["users"],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the current authenticated user information",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get current user",
                 "responses": {
-                    "200": {"description": "OK", "schema": {"type": "object", "additionalProperties": {}}}
+                    "200": {
+                        "description": "Current user info",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.UserData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
                 }
             }
         },
-        "/register": {
+        "/api/register": {
             "post": {
-                "description": "Create a user account with an email and password.",
-                "consumes": ["application/json"],
-                "produces": ["application/json"],
+                "description": "Register a new user with full name, email, and password. Sends OTP to email for verification.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
                 "summary": "Register a new user",
-                "tags": ["auth"],
-                "parameters": [{"description": "Registration payload", "name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/model.RegisterRequest"}}],
+                "parameters": [
+                    {
+                        "description": "Registration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.RegisterRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {"description": "Created", "schema": {"$ref": "#/definitions/model.User"}},
-                    "400": {"description": "Bad Request"}
+                    "201": {
+                        "description": "User created and OTP sent",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or email already exists",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/resend-otp": {
+            "post": {
+                "description": "Resend the OTP code to email (1 minute cooldown)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Resend OTP code",
+                "parameters": [
+                    {
+                        "description": "Resend OTP request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ResendOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OTP resent successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "User not found or cooldown active",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Please wait before requesting new code",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reset-password": {
+            "post": {
+                "description": "Reset password by sending a new random password to user's email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Reset password",
+                "parameters": [
+                    {
+                        "description": "Reset password request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New password sent to email",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "User not found or invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sijunjung": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Check if Sijunjung service is running",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sijunjung"
+                ],
+                "summary": "Check Sijunjung service",
+                "responses": {
+                    "200": {
+                        "description": "Service is running",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.SijunjungData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/verify-otp": {
+            "post": {
+                "description": "Verify the OTP code sent to email and get bearer token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Verify OTP code",
+                "parameters": [
+                    {
+                        "description": "Verify OTP request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.VerifyOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired code",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
                 }
             }
         }
     },
     "definitions": {
-        "model.LoginRequest": {
+        "http.APIErrorResponse": {
+            "description": "Standard API error response",
             "type": "object",
             "properties": {
-                "email": {"type": "string"},
-                "password": {"type": "string"}
+                "code": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "message": {
+                    "type": "string",
+                    "example": "invalid request"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "http.APIResponse": {
+            "description": "Standard API response",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "data": {
+                    "type": "object"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "operation successful"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "http.FacebookAuthData": {
+            "description": "Facebook auth data",
+            "type": "object",
+            "properties": {
+                "is_new_user": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "http.GoogleAuthData": {
+            "description": "Google auth data",
+            "type": "object",
+            "properties": {
+                "is_new_user": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "http.SijunjungData": {
+            "description": "Sijunjung service data",
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "running"
+                }
+            }
+        },
+        "http.TokenData": {
+            "description": "Token data",
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "http.UserData": {
+            "description": "User data",
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "example": "507f1f77bcf86cd799439011"
+                }
+            }
+        },
+        "model.FacebookAuthRequest": {
+            "description": "Request body for Facebook authentication",
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "example": "EAABsbCS1..."
+                }
+            }
+        },
+        "model.GoogleAuthRequest": {
+            "description": "Request body for Google authentication",
+            "type": "object",
+            "properties": {
+                "id_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "model.LoginRequest": {
+            "description": "Request body for user login",
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "sijunjunggo@gmail.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "password123"
+                }
             }
         },
         "model.RegisterRequest": {
+            "description": "Request body for user registration",
             "type": "object",
             "properties": {
-                "email": {"type": "string"},
-                "password": {"type": "string"}
+                "email": {
+                    "type": "string",
+                    "example": "sijunjunggo@gmail.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Sijunjung Go"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "password123"
+                }
             }
         },
-        "model.User": {
+        "model.ResendOTPRequest": {
+            "description": "Request body for resending OTP",
             "type": "object",
             "properties": {
-                "created_at": {"type": "string"},
-                "email": {"type": "string"},
-                "id": {"type": "string"}
+                "email": {
+                    "type": "string",
+                    "example": "sijunjunggo@gmail.com"
+                }
+            }
+        },
+        "model.ResetPasswordRequest": {
+            "description": "Request body for password reset",
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "sijunjunggo@gmail.com"
+                }
+            }
+        },
+        "model.VerifyOTPRequest": {
+            "description": "Request body for OTP verification",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "5318"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "sijunjunggo@gmail.com"
+                }
             }
         }
     },
     "securityDefinitions": {
-        "BearerAuth": {"type": "apiKey", "name": "Authorization", "in": "header"}
+        "BearerAuth": {
+            "description": "Enter your bearer token in the format: Bearer {token}",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }
