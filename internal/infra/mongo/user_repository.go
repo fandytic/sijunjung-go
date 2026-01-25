@@ -49,4 +49,19 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*model.
 	return &user, nil
 }
 
+// UpdatePassword updates the password hash for a user.
+func (r *UserRepository) UpdatePassword(ctx context.Context, email, passwordHash string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": bson.M{"password_hash": passwordHash}})
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("user not found")
+	}
+	return nil
+}
+
 var _ domain.UserRepository = (*UserRepository)(nil)
