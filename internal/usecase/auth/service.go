@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -20,17 +22,6 @@ const (
 	otpExpiry      = 5 * time.Minute
 	resendCooldown = 1 * time.Minute
 )
-
-// GoogleTokenInfo represents the response from Google's tokeninfo endpoint.
-type GoogleTokenInfo struct {
-	Email         string `json:"email"`
-	EmailVerified string `json:"email_verified"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-	Aud           string `json:"aud"`
-	Sub           string `json:"sub"`
-	Error         string `json:"error_description"`
-}
 
 // FacebookUserInfo represents the response from Facebook's Graph API /me endpoint.
 type FacebookUserInfo struct {
@@ -48,42 +39,101 @@ type FacebookErrorResponse struct {
 	} `json:"error"`
 }
 
+// GoogleOAuthTokenResponse represents the response from Google's token endpoint.
+type GoogleOAuthTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	IDToken      string `json:"id_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	TokenType    string `json:"token_type"`
+	Scope        string `json:"scope"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	Error        string `json:"error,omitempty"`
+	ErrorDesc    string `json:"error_description,omitempty"`
+}
+
+// GoogleUserInfo represents the response from Google's userinfo endpoint.
+type GoogleUserInfo struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Picture       string `json:"picture"`
+}
+
 // Service coordinates authentication workflows.
 type Service struct {
-	users             domain.UserRepository
-	tokens            domain.TokenRepository
-	otps              domain.OTPRepository
-	email             domain.EmailService
-	secret            string
-	googleClientID    string
-	facebookAppID     string
-	facebookAppSecret string
-	logger            domain.AppLogger
+	users              domain.UserRepository
+	tokens             domain.TokenRepository
+	otps               domain.OTPRepository
+	email              domain.EmailService
+	secret             string
+	googleClientID     string
+	googleClientSecret string
+	googleRedirectURL  string
+	facebookAppID      string
+	facebookAppSecret  string
+	logger             domain.AppLogger
 }
 
 // NewService constructs the authentication service.
-func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps domain.OTPRepository, email domain.EmailService, secret, googleClientID, facebookAppID, facebookAppSecret string, logger domain.AppLogger) *Service {
-	return &Service{users: users, tokens: tokens, otps: otps, email: email, secret: secret, googleClientID: googleClientID, facebookAppID: facebookAppID, facebookAppSecret: facebookAppSecret, logger: logger}
+func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps domain.OTPRepository, email domain.EmailService, secret, googleClientID, googleClientSecret, googleRedirectURL, facebookAppID, facebookAppSecret string, logger domain.AppLogger) *Service {
+	return &Service{
+		users:              users,
+		tokens:             tokens,
+		otps:               otps,
+		email:              email,
+		secret:             secret,
+		googleClientID:     googleClientID,
+		googleClientSecret: googleClientSecret,
+		googleRedirectURL:  googleRedirectURL,
+		facebookAppID:      facebookAppID,
+		facebookAppSecret:  facebookAppSecret,
+		logger:             logger,
+	}
 }
 
-// GoogleAuth authenticates a user with Google ID token.
-// If the user doesn't exist, it creates a new account.
-func (s *Service) GoogleAuth(ctx context.Context, idToken string) (string, bool, error) {
-	// Verify Google ID token
-	tokenInfo, err := s.verifyGoogleToken(ctx, idToken)
+// GetGoogleAuthURL returns the URL to redirect users to Google OAuth consent page.
+func (s *Service) GetGoogleAuthURL(state string) string {
+	params := url.Values{}
+	params.Set("client_id", s.googleClientID)
+	params.Set("redirect_uri", s.googleRedirectURL)
+	params.Set("response_type", "code")
+	params.Set("scope", "openid email profile")
+	params.Set("access_type", "offline")
+	params.Set("state", state)
+
+	return "https://accounts.google.com/o/oauth2/v2/auth?" + params.Encode()
+}
+
+// GoogleCallback exchanges the authorization code for tokens and user info.
+func (s *Service) GoogleCallback(ctx context.Context, code string) (string, bool, error) {
+	// Exchange authorization code for tokens
+	tokenResp, err := s.exchangeGoogleCode(ctx, code)
 	if err != nil {
 		return "", false, err
 	}
 
+	// Get user info from Google
+	userInfo, err := s.getGoogleUserInfo(ctx, tokenResp.AccessToken)
+	if err != nil {
+		return "", false, err
+	}
+
+	if !userInfo.VerifiedEmail {
+		return "", false, errors.New("Email Google belum diverifikasi")
+	}
+
 	// Check if user exists
 	isNewUser := false
-	user, err := s.users.FindByEmail(ctx, tokenInfo.Email)
+	user, err := s.users.FindByEmail(ctx, userInfo.Email)
 	if err != nil {
 		// User doesn't exist, create new one
 		isNewUser = true
 		user = &model.User{
-			FullName:     tokenInfo.Name,
-			Email:        tokenInfo.Email,
+			FullName:     userInfo.Name,
+			Email:        userInfo.Email,
 			AuthProvider: model.AuthProviderGoogle,
 			CreatedAt:    time.Now(),
 		}
@@ -109,41 +159,65 @@ func (s *Service) GoogleAuth(ctx context.Context, idToken string) (string, bool,
 	return tokenString, isNewUser, nil
 }
 
-// verifyGoogleToken verifies the Google ID token and returns user info.
-func (s *Service) verifyGoogleToken(ctx context.Context, idToken string) (*GoogleTokenInfo, error) {
-	// Call Google's tokeninfo endpoint
-	url := "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+// exchangeGoogleCode exchanges the authorization code for tokens.
+func (s *Service) exchangeGoogleCode(ctx context.Context, code string) (*GoogleOAuthTokenResponse, error) {
+	data := url.Values{}
+	data.Set("code", code)
+	data.Set("client_id", s.googleClientID)
+	data.Set("client_secret", s.googleClientSecret)
+	data.Set("redirect_uri", s.googleRedirectURL)
+	data.Set("grant_type", "authorization_code")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://oauth2.googleapis.com/token", strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.New("Gagal memverifikasi akun Google")
+		return nil, errors.New("Gagal menghubungi server Google")
 	}
 	defer resp.Body.Close()
 
-	var tokenInfo GoogleTokenInfo
-	if err := json.NewDecoder(resp.Body).Decode(&tokenInfo); err != nil {
-		return nil, errors.New("Gagal memproses data dari Google")
+	var tokenResp GoogleOAuthTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, errors.New("Gagal memproses respons dari Google")
 	}
 
-	if tokenInfo.Error != "" {
-		return nil, errors.New("Token Google tidak valid")
+	if tokenResp.Error != "" {
+		return nil, errors.New("Kode otorisasi Google tidak valid: " + tokenResp.ErrorDesc)
 	}
 
-	// Verify the token is for our app
-	if s.googleClientID != "" && tokenInfo.Aud != s.googleClientID {
-		return nil, errors.New("Token Google tidak sesuai dengan aplikasi ini")
+	return &tokenResp, nil
+}
+
+// getGoogleUserInfo fetches user info from Google using the access token.
+func (s *Service) getGoogleUserInfo(ctx context.Context, accessToken string) (*GoogleUserInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.New("Gagal mengambil data pengguna dari Google")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("Gagal mengambil data pengguna dari Google")
 	}
 
-	if tokenInfo.EmailVerified != "true" {
-		return nil, errors.New("Email Google belum diverifikasi")
+	var userInfo GoogleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, errors.New("Gagal memproses data pengguna dari Google")
 	}
 
-	return &tokenInfo, nil
+	return &userInfo, nil
 }
 
 // FacebookAuth authenticates a user with Facebook access token.

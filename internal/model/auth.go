@@ -21,12 +21,6 @@ type ResetPasswordRequest struct {
 	Email string `json:"email" example:"sijunjunggo@gmail.com"`
 }
 
-// GoogleAuthRequest defines payload for Google OAuth authentication.
-// @Description Request body for Google authentication
-type GoogleAuthRequest struct {
-	IDToken string `json:"id_token" example:"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."`
-}
-
 // FacebookAuthRequest defines payload for Facebook OAuth authentication.
 // @Description Request body for Facebook authentication
 type FacebookAuthRequest struct {
