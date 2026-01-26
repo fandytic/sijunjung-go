@@ -10,5 +10,6 @@ import (
 type TokenRepository interface {
 	Save(ctx context.Context, token model.Token) error
 	Delete(ctx context.Context, token string) error
+	DeleteByUserID(ctx context.Context, userID string) error
 	IsValid(ctx context.Context, token string) (bool, string, error)
 }

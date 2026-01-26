@@ -130,6 +130,35 @@ info:
   title: Sijunjung Go API
   version: "1.0"
 paths:
+  /api/account:
+    delete:
+      description: Permanently delete the current user account and all associated
+        data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account deleted successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Failed to delete account
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user account
+      tags:
+      - auth
   /api/auth/facebook:
     post:
       consumes:
