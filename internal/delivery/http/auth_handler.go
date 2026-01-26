@@ -147,24 +147,45 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	respondSuccessNoData(w, http.StatusOK, "Password baru telah dikirim ke "+req.Email)
 }
 
-// GoogleAuth godoc
-// @Summary Authenticate with Google
-// @Description Authenticate or register user with Google ID token
+// GoogleAuthRedirect godoc
+// @Summary Redirect to Google OAuth
+// @Description Redirects user to Google OAuth consent page for login/registration
 // @Tags auth
-// @Accept json
+// @Param state query string false "State parameter for CSRF protection"
+// @Success 302 "Redirect to Google OAuth"
+// @Router /api/auth/google [get]
+func (h *AuthHandler) GoogleAuthRedirect(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state")
+	if state == "" {
+		state = "default"
+	}
+	authURL := h.service.GetGoogleAuthURL(state)
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+// GoogleAuthCallback godoc
+// @Summary Google OAuth callback
+// @Description Handle callback from Google OAuth and return JWT token
+// @Tags auth
 // @Produce json
-// @Param request body model.GoogleAuthRequest true "Google auth request"
+// @Param code query string true "Authorization code from Google"
+// @Param state query string false "State parameter for CSRF protection"
 // @Success 200 {object} APIResponse{data=GoogleAuthData} "Authentication successful"
-// @Failure 400 {object} APIErrorResponse "Invalid Google token"
-// @Router /api/auth/google [post]
-func (h *AuthHandler) GoogleAuth(w http.ResponseWriter, r *http.Request) {
-	var req model.GoogleAuthRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "Format data tidak valid")
+// @Failure 400 {object} APIErrorResponse "Invalid authorization code"
+// @Router /api/auth/google/callback [get]
+func (h *AuthHandler) GoogleAuthCallback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		errorMsg := r.URL.Query().Get("error")
+		if errorMsg != "" {
+			respondError(w, http.StatusBadRequest, "Otorisasi Google ditolak: "+errorMsg)
+			return
+		}
+		respondError(w, http.StatusBadRequest, "Kode otorisasi tidak ditemukan")
 		return
 	}
 
-	token, isNewUser, err := h.service.GoogleAuth(r.Context(), req.IDToken)
+	token, isNewUser, err := h.service.GoogleCallback(r.Context(), code)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
