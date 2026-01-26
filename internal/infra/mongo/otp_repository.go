@@ -78,4 +78,13 @@ func (r *OTPRepository) Delete(ctx context.Context, email string) error {
 	return err
 }
 
+// DeleteByUserID removes all OTP documents for a user.
+func (r *OTPRepository) DeleteByUserID(ctx context.Context, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	_, err := r.collection.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
+}
+
 var _ domain.OTPRepository = (*OTPRepository)(nil)

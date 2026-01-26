@@ -38,6 +38,14 @@ func (r *TokenRepository) Delete(ctx context.Context, token string) error {
 	return err
 }
 
+// DeleteByUserID removes all tokens for a user.
+func (r *TokenRepository) DeleteByUserID(ctx context.Context, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err := r.collection.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
+}
+
 // IsValid verifies the token is stored and unexpired.
 func (r *TokenRepository) IsValid(ctx context.Context, token string) (bool, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)

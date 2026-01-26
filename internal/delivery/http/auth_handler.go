@@ -266,6 +266,25 @@ func (h *AuthHandler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, http.StatusOK, "Data user berhasil diambil", UserData{UserID: userID.(string)})
 }
 
+// DeleteAccount godoc
+// @Summary Delete user account
+// @Description Permanently delete the current user account and all associated data
+// @Tags auth
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} APIResponse{data=nil} "Account deleted successfully"
+// @Failure 400 {object} APIErrorResponse "Failed to delete account"
+// @Failure 401 {object} APIErrorResponse "Unauthorized"
+// @Router /api/account [delete]
+func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(ContextUserIDKey).(string)
+	if err := h.service.DeleteAccount(r.Context(), userID); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondSuccessNoData(w, http.StatusOK, "Akun berhasil dihapus")
+}
+
 func extractToken(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
 	parts := strings.SplitN(authHeader, " ", 2)

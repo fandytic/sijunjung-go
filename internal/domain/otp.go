@@ -12,4 +12,5 @@ type OTPRepository interface {
 	FindByEmail(ctx context.Context, email string) (*model.OTP, error)
 	MarkVerified(ctx context.Context, email string) error
 	Delete(ctx context.Context, email string) error
+	DeleteByUserID(ctx context.Context, userID string) error
 }

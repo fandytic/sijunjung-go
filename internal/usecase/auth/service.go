@@ -432,6 +432,33 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	return nil
 }
 
+// DeleteAccount permanently deletes a user account and all associated data.
+func (s *Service) DeleteAccount(ctx context.Context, userID string) error {
+	// Verify user exists
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return errors.New("Akun tidak ditemukan")
+	}
+
+	// Delete all tokens for this user
+	if err := s.tokens.DeleteByUserID(ctx, userID); err != nil {
+		s.logger.Error(ctx, "failed to delete tokens for user "+userID+": "+err.Error())
+	}
+
+	// Delete OTP records for this user
+	if err := s.otps.DeleteByUserID(ctx, userID); err != nil {
+		s.logger.Error(ctx, "failed to delete OTPs for user "+userID+": "+err.Error())
+	}
+
+	// Delete the user
+	if err := s.users.Delete(ctx, userID); err != nil {
+		return errors.New("Gagal menghapus akun")
+	}
+
+	s.logger.Info(ctx, "deleted account for user "+user.Email)
+	return nil
+}
+
 // ValidateToken parses and validates a bearer token, returning the user ID when valid.
 func (s *Service) ValidateToken(ctx context.Context, tokenString string) (string, error) {
 	parsed, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

@@ -94,6 +94,7 @@ func main() {
 			private.Use(authMiddleware.Handler)
 			private.Post("/logout", authHandler.Logout)
 			private.Get("/me", authHandler.CurrentUser)
+			private.Delete("/account", authHandler.DeleteAccount)
 			private.Get("/sijunjung", delivery.SijunjungHandler)
 		})
 	})
