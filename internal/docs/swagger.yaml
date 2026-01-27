@@ -76,13 +76,6 @@ definitions:
         example: EAABsbCS1...
         type: string
     type: object
-  model.GoogleAuthRequest:
-    description: Request body for Google authentication
-    properties:
-      id_token:
-        example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
-        type: string
-    type: object
   model.LoginRequest:
     description: Request body for user login
     properties:
@@ -215,17 +208,32 @@ paths:
       tags:
       - auth
   /api/auth/google:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate or register user with Google ID token
+    get:
+      description: Redirects user to Google OAuth consent page for login/registration
       parameters:
-      - description: Google auth request
-        in: body
-        name: request
+      - description: State parameter for CSRF protection
+        in: query
+        name: state
+        type: string
+      responses:
+        "302":
+          description: Redirect to Google OAuth
+      summary: Redirect to Google OAuth
+      tags:
+      - auth
+  /api/auth/google/callback:
+    get:
+      description: Handle callback from Google OAuth and return JWT token
+      parameters:
+      - description: Authorization code from Google
+        in: query
+        name: code
         required: true
-        schema:
-          $ref: '#/definitions/model.GoogleAuthRequest'
+        type: string
+      - description: State parameter for CSRF protection
+        in: query
+        name: state
+        type: string
       produces:
       - application/json
       responses:
@@ -239,10 +247,10 @@ paths:
                   $ref: '#/definitions/http.GoogleAuthData'
               type: object
         "400":
-          description: Invalid Google token
+          description: Invalid authorization code
           schema:
             $ref: '#/definitions/http.APIErrorResponse'
-      summary: Authenticate with Google
+      summary: Google OAuth callback
       tags:
       - auth
   /api/login:

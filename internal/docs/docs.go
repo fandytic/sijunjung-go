@@ -117,27 +117,50 @@ const docTemplate = `{
             }
         },
         "/api/auth/google": {
-            "post": {
-                "description": "Authenticate or register user with Google ID token",
-                "consumes": [
-                    "application/json"
+            "get": {
+                "description": "Redirects user to Google OAuth consent page for login/registration",
+                "tags": [
+                    "auth"
                 ],
+                "summary": "Redirect to Google OAuth",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "State parameter for CSRF protection",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Google OAuth"
+                    }
+                }
+            }
+        },
+        "/api/auth/google/callback": {
+            "get": {
+                "description": "Handle callback from Google OAuth and return JWT token",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "auth"
                 ],
-                "summary": "Authenticate with Google",
+                "summary": "Google OAuth callback",
                 "parameters": [
                     {
-                        "description": "Google auth request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.GoogleAuthRequest"
-                        }
+                        "type": "string",
+                        "description": "Authorization code from Google",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter for CSRF protection",
+                        "name": "state",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -160,7 +183,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid Google token",
+                        "description": "Invalid authorization code",
                         "schema": {
                             "$ref": "#/definitions/http.APIErrorResponse"
                         }
@@ -791,16 +814,6 @@ const docTemplate = `{
                 "access_token": {
                     "type": "string",
                     "example": "EAABsbCS1..."
-                }
-            }
-        },
-        "model.GoogleAuthRequest": {
-            "description": "Request body for Google authentication",
-            "type": "object",
-            "properties": {
-                "id_token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
                 }
             }
         },
