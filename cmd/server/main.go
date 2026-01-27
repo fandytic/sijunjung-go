@@ -30,6 +30,7 @@ import (
 	"github.com/example/sijunjung-go/internal/infra/email"
 	"github.com/example/sijunjung-go/internal/infra/logging"
 	mongorepo "github.com/example/sijunjung-go/internal/infra/mongo"
+	"github.com/example/sijunjung-go/internal/infra/whatsapp"
 	"github.com/example/sijunjung-go/internal/usecase/auth"
 
 	_ "github.com/example/sijunjung-go/internal/docs"
@@ -60,8 +61,9 @@ func main() {
 	tokenRepo := mongorepo.NewTokenRepository(db)
 	otpRepo := mongorepo.NewOTPRepository(db)
 	emailService := email.NewMailjetService(cfg.MailjetAPIKey, cfg.MailjetSecretKey, cfg.MailjetFromName, cfg.MailjetFromEmail)
+	whatsappService := whatsapp.NewFonnteService(cfg.FonnteToken)
 
-	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, cfg.AuthSecret, cfg.GoogleClientID, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
+	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, whatsappService, cfg.AuthSecret, cfg.GoogleClientID, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
 
 	router := chi.NewRouter()
 	router.Use(cors.Handler(cors.Options{
@@ -89,6 +91,10 @@ func main() {
 		r.Post("/login", authHandler.Login)
 		r.Post("/auth/google", authHandler.GoogleAuth)
 		r.Post("/auth/facebook", authHandler.FacebookAuth)
+
+		// WhatsApp OTP routes
+		r.Post("/whatsapp/send-otp", authHandler.SendWhatsAppOTP)
+		r.Post("/whatsapp/verify-otp", authHandler.VerifyWhatsAppOTP)
 
 		r.Group(func(private chi.Router) {
 			private.Use(authMiddleware.Handler)

@@ -17,6 +17,7 @@ type Config struct {
 	GoogleClientID    string
 	FacebookAppID     string
 	FacebookAppSecret string
+	FonnteToken       string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -37,6 +38,7 @@ func Load() Config {
 		GoogleClientID:    os.Getenv("GOOGLE_CLIENT_ID"),
 		FacebookAppID:     os.Getenv("FACEBOOK_APP_ID"),
 		FacebookAppSecret: os.Getenv("FACEBOOK_APP_SECRET"),
+		FonnteToken:       os.Getenv("FONNTE_TOKEN"),
 	}
 	return cfg
 }
