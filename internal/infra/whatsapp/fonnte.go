@@ -53,6 +53,17 @@ func (s *FonnteService) SendOTP(ctx context.Context, phone, code string) error {
 	}
 	defer resp.Body.Close()
 
+	// Check HTTP status code before decoding JSON
+	if resp.StatusCode == http.StatusUnauthorized {
+		return errors.New("Token Fonnte tidak valid")
+	}
+	if resp.StatusCode >= 500 {
+		return errors.New("Server Fonnte sedang bermasalah, coba lagi nanti")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return errors.New("Gagal mengirim pesan WhatsApp: HTTP " + resp.Status)
+	}
+
 	var result FonnteResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return errors.New("Gagal memproses response dari WhatsApp service")
