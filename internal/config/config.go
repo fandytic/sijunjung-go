@@ -6,19 +6,20 @@ import (
 
 // Config holds application configuration values.
 type Config struct {
-	MongoURI            string
-	Database            string
-	AuthSecret          string
-	HTTPPort            string
-	MailjetAPIKey       string
-	MailjetSecretKey    string
-	MailjetFromName     string
-	MailjetFromEmail    string
-	GoogleClientID      string
-	GoogleClientSecret  string
-	GoogleRedirectURL   string
-	FacebookAppID       string
-	FacebookAppSecret   string
+	MongoURI           string
+	Database           string
+	AuthSecret         string
+	HTTPPort           string
+	MailjetAPIKey      string
+	MailjetSecretKey   string
+	MailjetFromName    string
+	MailjetFromEmail   string
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURL  string
+	FacebookAppID      string
+	FacebookAppSecret  string
+	FonnteToken        string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -41,6 +42,7 @@ func Load() Config {
 		GoogleRedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
 		FacebookAppID:      os.Getenv("FACEBOOK_APP_ID"),
 		FacebookAppSecret:  os.Getenv("FACEBOOK_APP_SECRET"),
+		FonnteToken:        os.Getenv("FONNTE_TOKEN"),
 	}
 	return cfg
 }

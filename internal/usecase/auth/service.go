@@ -68,6 +68,7 @@ type Service struct {
 	tokens             domain.TokenRepository
 	otps               domain.OTPRepository
 	email              domain.EmailService
+	whatsapp           domain.WhatsAppService
 	secret             string
 	googleClientID     string
 	googleClientSecret string
@@ -78,12 +79,13 @@ type Service struct {
 }
 
 // NewService constructs the authentication service.
-func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps domain.OTPRepository, email domain.EmailService, secret, googleClientID, googleClientSecret, googleRedirectURL, facebookAppID, facebookAppSecret string, logger domain.AppLogger) *Service {
+func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps domain.OTPRepository, email domain.EmailService, whatsapp domain.WhatsAppService, secret, googleClientID, googleClientSecret, googleRedirectURL, facebookAppID, facebookAppSecret string, logger domain.AppLogger) *Service {
 	return &Service{
 		users:              users,
 		tokens:             tokens,
 		otps:               otps,
 		email:              email,
+		whatsapp:           whatsapp,
 		secret:             secret,
 		googleClientID:     googleClientID,
 		googleClientSecret: googleClientSecret,
@@ -563,6 +565,95 @@ func (s *Service) ValidateToken(ctx context.Context, tokenString string) (string
 		}
 	}
 	return "", errors.New("invalid token claims")
+}
+
+// normalizePhone converts phone number to standard format (628xxx).
+// Accepts: 08123456789, +628123456789, 628123456789
+func normalizePhone(phone string) string {
+	// Remove spaces and dashes
+	phone = strings.ReplaceAll(phone, " ", "")
+	phone = strings.ReplaceAll(phone, "-", "")
+
+	// Remove leading +
+	phone = strings.TrimPrefix(phone, "+")
+
+	// Convert 08xx to 628xx
+	if strings.HasPrefix(phone, "0") {
+		phone = "62" + phone[1:]
+	}
+
+	return phone
+}
+
+// SendWhatsAppOTP sends an OTP code via WhatsApp.
+func (s *Service) SendWhatsAppOTP(ctx context.Context, phone string) error {
+	// Normalize phone number
+	phone = normalizePhone(phone)
+
+	// Check cooldown
+	existingOTP, err := s.otps.FindByPhone(ctx, phone)
+	if err == nil && existingOTP != nil {
+		if existingOTP.Verified {
+			return errors.New("Nomor WhatsApp sudah diverifikasi sebelumnya")
+		}
+		timeSinceLastOTP := time.Since(existingOTP.CreatedAt)
+		if timeSinceLastOTP < resendCooldown {
+			remaining := resendCooldown - timeSinceLastOTP
+			return fmt.Errorf("Mohon tunggu %d detik sebelum meminta kode baru", int(remaining.Seconds()))
+		}
+	}
+
+	// Generate new OTP
+	code := s.generateOTPCode()
+	otp := &model.OTP{
+		Phone:     phone,
+		Code:      code,
+		ExpiresAt: time.Now().Add(otpExpiry),
+		Verified:  false,
+		CreatedAt: time.Now(),
+	}
+	if err := s.otps.SaveByPhone(ctx, otp); err != nil {
+		return err
+	}
+
+	if err := s.whatsapp.SendOTP(ctx, phone, code); err != nil {
+		s.logger.Error(ctx, "failed to send WhatsApp OTP: "+err.Error())
+		return errors.New("Gagal mengirim kode verifikasi ke WhatsApp")
+	}
+
+	s.logger.Info(ctx, "sent WhatsApp OTP to "+phone)
+	return nil
+}
+
+// VerifyWhatsAppOTP verifies the OTP code sent via WhatsApp.
+func (s *Service) VerifyWhatsAppOTP(ctx context.Context, phone, code string) error {
+	// Normalize phone number
+	phone = normalizePhone(phone)
+
+	otp, err := s.otps.FindByPhone(ctx, phone)
+	if err != nil {
+		return errors.New("Kode verifikasi tidak ditemukan")
+	}
+
+	if otp.Verified {
+		return errors.New("Nomor WhatsApp sudah diverifikasi sebelumnya")
+	}
+
+	if time.Now().After(otp.ExpiresAt) {
+		return errors.New("Kode verifikasi sudah kedaluwarsa")
+	}
+
+	if otp.Code != code {
+		return errors.New("Kode verifikasi tidak valid")
+	}
+
+	// Mark as verified
+	if err := s.otps.MarkVerifiedByPhone(ctx, phone); err != nil {
+		return err
+	}
+
+	s.logger.Info(ctx, "verified WhatsApp OTP for "+phone)
+	return nil
 }
 
 func (s *Service) signToken(userID string) (string, time.Time, error) {

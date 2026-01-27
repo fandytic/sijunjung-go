@@ -87,4 +87,59 @@ func (r *OTPRepository) DeleteByUserID(ctx context.Context, userID string) error
 	return err
 }
 
+// SaveByPhone inserts or updates an OTP document for the given phone number.
+func (r *OTPRepository) SaveByPhone(ctx context.Context, otp *model.OTP) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{"phone": otp.Phone}
+	update := bson.M{
+		"$set": bson.M{
+			"user_id":    otp.UserID,
+			"phone":      otp.Phone,
+			"code":       otp.Code,
+			"expires_at": otp.ExpiresAt,
+			"verified":   otp.Verified,
+			"created_at": otp.CreatedAt,
+		},
+	}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := r.collection.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// FindByPhone returns an OTP by phone number.
+func (r *OTPRepository) FindByPhone(ctx context.Context, phone string) (*model.OTP, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var otp model.OTP
+	if err := r.collection.FindOne(ctx, bson.M{"phone": phone}).Decode(&otp); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, errors.New("otp not found")
+		}
+		return nil, err
+	}
+	return &otp, nil
+}
+
+// MarkVerifiedByPhone marks an OTP as verified by phone number.
+func (r *OTPRepository) MarkVerifiedByPhone(ctx context.Context, phone string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	_, err := r.collection.UpdateOne(ctx, bson.M{"phone": phone}, bson.M{"$set": bson.M{"verified": true}})
+	return err
+}
+
+// DeleteByPhone removes an OTP document by phone number.
+func (r *OTPRepository) DeleteByPhone(ctx context.Context, phone string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	_, err := r.collection.DeleteOne(ctx, bson.M{"phone": phone})
+	return err
+}
+
 var _ domain.OTPRepository = (*OTPRepository)(nil)

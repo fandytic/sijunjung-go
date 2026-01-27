@@ -113,6 +113,13 @@ definitions:
         example: sijunjunggo@gmail.com
         type: string
     type: object
+  model.SendWhatsAppOTPRequest:
+    description: Request body for sending OTP via WhatsApp
+    properties:
+      phone:
+        example: "628123456789"
+        type: string
+    type: object
   model.VerifyOTPRequest:
     description: Request body for OTP verification
     properties:
@@ -121,6 +128,16 @@ definitions:
         type: string
       email:
         example: sijunjunggo@gmail.com
+        type: string
+    type: object
+  model.VerifyWhatsAppOTPRequest:
+    description: Request body for verifying WhatsApp OTP
+    properties:
+      code:
+        example: "5318"
+        type: string
+      phone:
+        example: "628123456789"
         type: string
     type: object
 host: localhost:8080
@@ -476,6 +493,72 @@ paths:
       summary: Verify OTP code
       tags:
       - auth
+  /api/whatsapp/send-otp:
+    post:
+      consumes:
+      - application/json
+      description: Send an OTP code to the specified WhatsApp number (1 minute cooldown)
+      parameters:
+      - description: Send WhatsApp OTP request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendWhatsAppOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OTP sent successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+        "429":
+          description: Please wait before requesting new code
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Send OTP via WhatsApp
+      tags:
+      - whatsapp
+  /api/whatsapp/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verify the OTP code sent to WhatsApp
+      parameters:
+      - description: Verify WhatsApp OTP request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.VerifyWhatsAppOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Invalid or expired code
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Verify WhatsApp OTP code
+      tags:
+      - whatsapp
 securityDefinitions:
   BearerAuth:
     description: 'Enter your bearer token in the format: Bearer {token}'

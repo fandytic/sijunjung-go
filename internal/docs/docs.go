@@ -597,6 +597,116 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/whatsapp/send-otp": {
+            "post": {
+                "description": "Send an OTP code to the specified WhatsApp number (1 minute cooldown)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "whatsapp"
+                ],
+                "summary": "Send OTP via WhatsApp",
+                "parameters": [
+                    {
+                        "description": "Send WhatsApp OTP request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.SendWhatsAppOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OTP sent successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Please wait before requesting new code",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/whatsapp/verify-otp": {
+            "post": {
+                "description": "Verify the OTP code sent to WhatsApp",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "whatsapp"
+                ],
+                "summary": "Verify WhatsApp OTP code",
+                "parameters": [
+                    {
+                        "description": "Verify WhatsApp OTP request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.VerifyWhatsAppOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired code",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -759,6 +869,16 @@ const docTemplate = `{
                 }
             }
         },
+        "model.SendWhatsAppOTPRequest": {
+            "description": "Request body for sending OTP via WhatsApp",
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "example": "628123456789"
+                }
+            }
+        },
         "model.VerifyOTPRequest": {
             "description": "Request body for OTP verification",
             "type": "object",
@@ -770,6 +890,20 @@ const docTemplate = `{
                 "email": {
                     "type": "string",
                     "example": "sijunjunggo@gmail.com"
+                }
+            }
+        },
+        "model.VerifyWhatsAppOTPRequest": {
+            "description": "Request body for verifying WhatsApp OTP",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "5318"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "628123456789"
                 }
             }
         }

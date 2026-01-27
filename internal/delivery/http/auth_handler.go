@@ -306,6 +306,69 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	respondSuccessNoData(w, http.StatusOK, "Akun berhasil dihapus")
 }
 
+// SendWhatsAppOTP godoc
+// @Summary Send OTP via WhatsApp
+// @Description Send an OTP code to the specified WhatsApp number (1 minute cooldown)
+// @Tags whatsapp
+// @Accept json
+// @Produce json
+// @Param request body model.SendWhatsAppOTPRequest true "Send WhatsApp OTP request"
+// @Success 200 {object} APIResponse{data=nil} "OTP sent successfully"
+// @Failure 400 {object} APIErrorResponse "Invalid request"
+// @Failure 429 {object} APIErrorResponse "Please wait before requesting new code"
+// @Router /api/whatsapp/send-otp [post]
+func (h *AuthHandler) SendWhatsAppOTP(w http.ResponseWriter, r *http.Request) {
+	var req model.SendWhatsAppOTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
+		return
+	}
+
+	if req.Phone == "" {
+		respondError(w, http.StatusBadRequest, "Nomor WhatsApp harus diisi")
+		return
+	}
+
+	if err := h.service.SendWhatsAppOTP(r.Context(), req.Phone); err != nil {
+		if strings.Contains(err.Error(), "Mohon tunggu") {
+			respondError(w, http.StatusTooManyRequests, err.Error())
+			return
+		}
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondSuccessNoData(w, http.StatusOK, "Kode verifikasi telah dikirim ke WhatsApp "+req.Phone)
+}
+
+// VerifyWhatsAppOTP godoc
+// @Summary Verify WhatsApp OTP code
+// @Description Verify the OTP code sent to WhatsApp
+// @Tags whatsapp
+// @Accept json
+// @Produce json
+// @Param request body model.VerifyWhatsAppOTPRequest true "Verify WhatsApp OTP request"
+// @Success 200 {object} APIResponse{data=nil} "Verification successful"
+// @Failure 400 {object} APIErrorResponse "Invalid or expired code"
+// @Router /api/whatsapp/verify-otp [post]
+func (h *AuthHandler) VerifyWhatsAppOTP(w http.ResponseWriter, r *http.Request) {
+	var req model.VerifyWhatsAppOTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
+		return
+	}
+
+	if req.Phone == "" || req.Code == "" {
+		respondError(w, http.StatusBadRequest, "Nomor WhatsApp dan kode OTP harus diisi")
+		return
+	}
+
+	if err := h.service.VerifyWhatsAppOTP(r.Context(), req.Phone, req.Code); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondSuccessNoData(w, http.StatusOK, "Nomor WhatsApp berhasil diverifikasi")
+}
+
 func extractToken(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
 	parts := strings.SplitN(authHeader, " ", 2)
