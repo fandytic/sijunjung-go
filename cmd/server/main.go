@@ -92,6 +92,7 @@ func main() {
 		r.Get("/auth/google", authHandler.GoogleAuthRedirect)
 		r.Get("/auth/google/callback", authHandler.GoogleAuthCallback)
 		r.Post("/auth/facebook", authHandler.FacebookAuth)
+		r.Post("/auth/google-mobile", authHandler.GoogleAuthMobile)
 
 		// WhatsApp OTP routes
 		r.Post("/whatsapp/send-otp", authHandler.SendWhatsAppOTP)

@@ -228,6 +228,41 @@ func (h *AuthHandler) FacebookAuth(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, http.StatusOK, message, FacebookAuthData{Token: token, IsNewUser: isNewUser})
 }
 
+// GoogleAuthMobile godoc
+// @Summary Authenticate with Google (Mobile)
+// @Description Authenticate or register user with Google ID token from mobile client (Flutter)
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body model.GoogleMobileAuthRequest true "Google mobile auth request"
+// @Success 200 {object} APIResponse{data=GoogleAuthData} "Authentication successful"
+// @Failure 400 {object} APIErrorResponse "Invalid Google token"
+// @Router /api/auth/google-mobile [post]
+func (h *AuthHandler) GoogleAuthMobile(w http.ResponseWriter, r *http.Request) {
+	var req model.GoogleMobileAuthRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
+		return
+	}
+
+	if req.IDToken == "" {
+		respondError(w, http.StatusBadRequest, "ID token Google tidak boleh kosong")
+		return
+	}
+
+	token, isNewUser, err := h.service.GoogleMobileAuth(r.Context(), req.IDToken)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	message := "Login dengan Google berhasil"
+	if isNewUser {
+		message = "Registrasi dengan Google berhasil"
+	}
+	respondSuccess(w, http.StatusOK, message, GoogleAuthData{Token: token, IsNewUser: isNewUser})
+}
+
 // Login godoc
 // @Summary Login user
 // @Description Authenticate user with email and password to get bearer token

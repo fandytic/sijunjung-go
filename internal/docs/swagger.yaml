@@ -76,6 +76,13 @@ definitions:
         example: EAABsbCS1...
         type: string
     type: object
+  model.GoogleMobileAuthRequest:
+    description: Request body for Google authentication from mobile apps (Flutter)
+    properties:
+      id_token:
+        example: eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ...
+        type: string
+    type: object
   model.LoginRequest:
     description: Request body for user login
     properties:
@@ -219,6 +226,38 @@ paths:
         "302":
           description: Redirect to Google OAuth
       summary: Redirect to Google OAuth
+      tags:
+      - auth
+  /api/auth/google-mobile:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate or register user with Google ID token from mobile
+        client (Flutter)
+      parameters:
+      - description: Google mobile auth request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.GoogleMobileAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Authentication successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.GoogleAuthData'
+              type: object
+        "400":
+          description: Invalid Google token
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Authenticate with Google (Mobile)
       tags:
       - auth
   /api/auth/google/callback:
