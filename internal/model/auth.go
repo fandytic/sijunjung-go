@@ -26,3 +26,9 @@ type ResetPasswordRequest struct {
 type FacebookAuthRequest struct {
 	AccessToken string `json:"access_token" example:"EAABsbCS1..."`
 }
+
+// GoogleMobileAuthRequest defines payload for Google OAuth via mobile client.
+// @Description Request body for Google authentication from mobile apps (Flutter)
+type GoogleMobileAuthRequest struct {
+	IDToken string `json:"id_token" example:"eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ..."`
+}

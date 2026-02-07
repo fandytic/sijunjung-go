@@ -138,6 +138,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/auth/google-mobile": {
+            "post": {
+                "description": "Authenticate or register user with Google ID token from mobile client (Flutter)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Authenticate with Google (Mobile)",
+                "parameters": [
+                    {
+                        "description": "Google mobile auth request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.GoogleMobileAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.GoogleAuthData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Google token",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/google/callback": {
             "get": {
                 "description": "Handle callback from Google OAuth and return JWT token",
@@ -814,6 +866,16 @@ const docTemplate = `{
                 "access_token": {
                     "type": "string",
                     "example": "EAABsbCS1..."
+                }
+            }
+        },
+        "model.GoogleMobileAuthRequest": {
+            "description": "Request body for Google authentication from mobile apps (Flutter)",
+            "type": "object",
+            "properties": {
+                "id_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ..."
                 }
             }
         },

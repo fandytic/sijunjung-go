@@ -301,6 +301,96 @@ func (s *Service) verifyFacebookToken(ctx context.Context, accessToken string) (
 	return &userInfo, nil
 }
 
+// googleIDTokenInfo represents the response from Google's tokeninfo endpoint.
+type googleIDTokenInfo struct {
+	Aud           string `json:"aud"`
+	Email         string `json:"email"`
+	EmailVerified string `json:"email_verified"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Picture       string `json:"picture"`
+	Sub           string `json:"sub"`
+}
+
+// GoogleMobileAuth authenticates a user with a Google ID token from a mobile client.
+// If the user doesn't exist, it creates a new account.
+func (s *Service) GoogleMobileAuth(ctx context.Context, idToken string) (string, bool, error) {
+	// Verify ID token with Google
+	tokenInfo, err := s.verifyGoogleIDToken(ctx, idToken)
+	if err != nil {
+		return "", false, err
+	}
+
+	if tokenInfo.Aud != s.googleClientID {
+		return "", false, errors.New("Token Google tidak valid untuk aplikasi ini")
+	}
+
+	if tokenInfo.EmailVerified != "true" {
+		return "", false, errors.New("Email Google belum diverifikasi")
+	}
+
+	// Check if user exists
+	isNewUser := false
+	user, err := s.users.FindByEmail(ctx, tokenInfo.Email)
+	if err != nil {
+		// User doesn't exist, create new one
+		isNewUser = true
+		user = &model.User{
+			FullName:     tokenInfo.Name,
+			Email:        tokenInfo.Email,
+			AuthProvider: model.AuthProviderGoogle,
+			CreatedAt:    time.Now(),
+		}
+		if err := s.users.Create(ctx, user); err != nil {
+			return "", false, err
+		}
+		s.logger.Info(ctx, "registered new Google mobile user "+user.Email)
+	}
+
+	// Generate token
+	tokenString, expires, err := s.signToken(user.ID.Hex())
+	if err != nil {
+		return "", false, err
+	}
+	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
+	if err := s.tokens.Save(ctx, record); err != nil {
+		return "", false, err
+	}
+
+	if !isNewUser {
+		s.logger.Info(ctx, "Google mobile login for user "+user.Email)
+	}
+	return tokenString, isNewUser, nil
+}
+
+// verifyGoogleIDToken verifies a Google ID token using Google's tokeninfo endpoint.
+func (s *Service) verifyGoogleIDToken(ctx context.Context, idToken string) (*googleIDTokenInfo, error) {
+	apiURL := "https://oauth2.googleapis.com/tokeninfo?id_token=" + url.QueryEscape(idToken)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.New("Gagal memverifikasi token Google")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("Token Google tidak valid")
+	}
+
+	var tokenInfo googleIDTokenInfo
+	if err := json.NewDecoder(resp.Body).Decode(&tokenInfo); err != nil {
+		return nil, errors.New("Gagal memproses data dari Google")
+	}
+
+	return &tokenInfo, nil
+}
+
 // Register creates a new user and sends OTP for verification.
 func (s *Service) Register(ctx context.Context, fullName, email, password string) error {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
