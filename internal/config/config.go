@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -23,6 +24,8 @@ type Config struct {
 	FacebookAppID       string
 	FacebookAppSecret   string
 	FonnteToken         string
+	LogRetentionDays    int
+	LogCleanupInterval  time.Duration
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -48,6 +51,8 @@ func Load() Config {
 		FacebookAppID:       os.Getenv("FACEBOOK_APP_ID"),
 		FacebookAppSecret:   os.Getenv("FACEBOOK_APP_SECRET"),
 		FonnteToken:         os.Getenv("FONNTE_TOKEN"),
+		LogRetentionDays:    parseInt("LOG_RETENTION_DAYS", 30),
+		LogCleanupInterval:  parseDuration("LOG_CLEANUP_INTERVAL", 24*time.Hour),
 	}
 	return cfg
 }
@@ -64,6 +69,18 @@ func parseDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func parseInt(key string, fallback int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(val)
+	if err != nil {
+		return fallback
+	}
+	return n
 }
 
 func envOrDefault(key, fallback string) string {

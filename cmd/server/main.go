@@ -57,6 +57,8 @@ func main() {
 	db := client.Database(cfg.Database)
 
 	appLogger := logging.New(db)
+	appLogger.StartCleanup(cfg.LogCleanupInterval, cfg.LogRetentionDays)
+
 	userRepo := mongorepo.NewUserRepository(db)
 	tokenRepo := mongorepo.NewTokenRepository(db)
 	otpRepo := mongorepo.NewOTPRepository(db)

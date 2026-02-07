@@ -57,4 +57,51 @@ func (l *Logger) Error(ctx context.Context, msg string) {
 	l.log(ctx, "ERROR", msg)
 }
 
+// DeleteOlderThan removes log entries older than the specified number of days.
+func (l *Logger) DeleteOlderThan(ctx context.Context, days int) (int64, error) {
+	if l == nil || l.mongoCollection == nil {
+		return 0, nil
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	result, err := l.mongoCollection.DeleteMany(ctx, bson.M{
+		"created_at": bson.M{"$lt": cutoff},
+	})
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
+}
+
+// StartCleanup runs a background goroutine that periodically deletes old log entries.
+// If retentionDays <= 0, cleanup is disabled and logs are retained forever.
+func (l *Logger) StartCleanup(interval time.Duration, retentionDays int) {
+	if retentionDays <= 0 {
+		l.stdLogger.Printf("[INFO] Log cleanup disabled (LOG_RETENTION_DAYS=%d)", retentionDays)
+		return
+	}
+
+	l.runCleanup(retentionDays)
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			l.runCleanup(retentionDays)
+		}
+	}()
+}
+
+func (l *Logger) runCleanup(retentionDays int) {
+	deleted, err := l.DeleteOlderThan(context.Background(), retentionDays)
+	if err != nil {
+		l.stdLogger.Printf("[WARN] Log cleanup failed: %v", err)
+		return
+	}
+	if deleted > 0 {
+		l.stdLogger.Printf("[INFO] Log cleanup: deleted %d entries older than %d days", deleted, retentionDays)
+	}
+}
+
 var _ domain.AppLogger = (*Logger)(nil)
