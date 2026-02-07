@@ -308,7 +308,10 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Revoke the current bearer token",
+                "description": "Revoke the current access token and optionally the refresh token",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -316,6 +319,16 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Logout user",
+                "parameters": [
+                    {
+                        "description": "Logout request with optional refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/model.LogoutRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Logout successful",
@@ -960,6 +973,16 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "example": "password123"
+                }
+            }
+        },
+        "model.LogoutRequest": {
+            "description": "Request body for logout (optional refresh token to revoke)",
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 }
             }
         },

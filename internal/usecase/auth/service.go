@@ -570,15 +570,20 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, st
 	return accessToken, refreshToken, nil
 }
 
-// Logout revokes an existing token.
-func (s *Service) Logout(ctx context.Context, token string) error {
-	if token == "" {
+// Logout revokes the access token and optionally the refresh token.
+func (s *Service) Logout(ctx context.Context, accessToken, refreshToken string) error {
+	if accessToken == "" {
 		return errors.New("Token tidak ditemukan")
 	}
-	if err := s.tokens.Delete(ctx, token); err != nil {
+	if err := s.tokens.Delete(ctx, accessToken); err != nil {
 		return err
 	}
-	s.logger.Info(ctx, "logout: "+token)
+	if refreshToken != "" {
+		if err := s.tokens.Delete(ctx, refreshToken); err != nil {
+			s.logger.Error(ctx, "failed to delete refresh token on logout: "+err.Error())
+		}
+	}
+	s.logger.Info(ctx, "logout: "+accessToken)
 	return nil
 }
 

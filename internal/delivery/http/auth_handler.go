@@ -294,17 +294,23 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // Logout godoc
 // @Summary Logout user
-// @Description Revoke the current bearer token
+// @Description Revoke the current access token and optionally the refresh token
 // @Tags auth
 // @Security BearerAuth
+// @Accept json
 // @Produce json
+// @Param request body model.LogoutRequest false "Logout request with optional refresh token"
 // @Success 200 {object} APIResponse{data=nil} "Logout successful"
 // @Failure 400 {object} APIErrorResponse "Invalid or missing token"
 // @Failure 401 {object} APIErrorResponse "Unauthorized"
 // @Router /api/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	token := extractToken(r)
-	if err := h.service.Logout(r.Context(), token); err != nil {
+	accessToken := extractToken(r)
+
+	var req model.LogoutRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if err := h.service.Logout(r.Context(), accessToken, req.RefreshToken); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}

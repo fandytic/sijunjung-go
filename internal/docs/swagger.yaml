@@ -102,6 +102,13 @@ definitions:
         example: password123
         type: string
     type: object
+  model.LogoutRequest:
+    description: Request body for logout (optional refresh token to revoke)
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
   model.RefreshTokenRequest:
     description: Request body for refreshing access token
     properties:
@@ -345,7 +352,15 @@ paths:
       - auth
   /api/logout:
     post:
-      description: Revoke the current bearer token
+      consumes:
+      - application/json
+      description: Revoke the current access token and optionally the refresh token
+      parameters:
+      - description: Logout request with optional refresh token
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/model.LogoutRequest'
       produces:
       - application/json
       responses:
