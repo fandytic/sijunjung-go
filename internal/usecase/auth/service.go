@@ -70,6 +70,8 @@ type Service struct {
 	email              domain.EmailService
 	whatsapp           domain.WhatsAppService
 	secret             string
+	accessTokenExpiry  time.Duration
+	refreshTokenExpiry time.Duration
 	googleClientID     string
 	googleClientSecret string
 	googleRedirectURL  string
@@ -79,7 +81,7 @@ type Service struct {
 }
 
 // NewService constructs the authentication service.
-func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps domain.OTPRepository, email domain.EmailService, whatsapp domain.WhatsAppService, secret, googleClientID, googleClientSecret, googleRedirectURL, facebookAppID, facebookAppSecret string, logger domain.AppLogger) *Service {
+func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps domain.OTPRepository, email domain.EmailService, whatsapp domain.WhatsAppService, secret string, accessTokenExpiry, refreshTokenExpiry time.Duration, googleClientID, googleClientSecret, googleRedirectURL, facebookAppID, facebookAppSecret string, logger domain.AppLogger) *Service {
 	return &Service{
 		users:              users,
 		tokens:             tokens,
@@ -87,6 +89,8 @@ func NewService(users domain.UserRepository, tokens domain.TokenRepository, otps
 		email:              email,
 		whatsapp:           whatsapp,
 		secret:             secret,
+		accessTokenExpiry:  accessTokenExpiry,
+		refreshTokenExpiry: refreshTokenExpiry,
 		googleClientID:     googleClientID,
 		googleClientSecret: googleClientSecret,
 		googleRedirectURL:  googleRedirectURL,
@@ -110,21 +114,21 @@ func (s *Service) GetGoogleAuthURL(state string) string {
 }
 
 // GoogleCallback exchanges the authorization code for tokens and user info.
-func (s *Service) GoogleCallback(ctx context.Context, code string) (string, bool, error) {
+func (s *Service) GoogleCallback(ctx context.Context, code string) (string, string, bool, error) {
 	// Exchange authorization code for tokens
 	tokenResp, err := s.exchangeGoogleCode(ctx, code)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	// Get user info from Google
 	userInfo, err := s.getGoogleUserInfo(ctx, tokenResp.AccessToken)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	if !userInfo.VerifiedEmail {
-		return "", false, errors.New("Email Google belum diverifikasi")
+		return "", "", false, errors.New("Email Google belum diverifikasi")
 	}
 
 	// Check if user exists
@@ -140,25 +144,21 @@ func (s *Service) GoogleCallback(ctx context.Context, code string) (string, bool
 			CreatedAt:    time.Now(),
 		}
 		if err := s.users.Create(ctx, user); err != nil {
-			return "", false, err
+			return "", "", false, err
 		}
 		s.logger.Info(ctx, "registered new Google user "+user.Email)
 	}
 
-	// Generate token
-	tokenString, expires, err := s.signToken(user.ID.Hex())
+	// Generate token pair
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
 	if err != nil {
-		return "", false, err
-	}
-	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
-	if err := s.tokens.Save(ctx, record); err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	if !isNewUser {
 		s.logger.Info(ctx, "Google login for user "+user.Email)
 	}
-	return tokenString, isNewUser, nil
+	return accessToken, refreshToken, isNewUser, nil
 }
 
 // exchangeGoogleCode exchanges the authorization code for tokens.
@@ -224,15 +224,15 @@ func (s *Service) getGoogleUserInfo(ctx context.Context, accessToken string) (*G
 
 // FacebookAuth authenticates a user with Facebook access token.
 // If the user doesn't exist, it creates a new account.
-func (s *Service) FacebookAuth(ctx context.Context, accessToken string) (string, bool, error) {
+func (s *Service) FacebookAuth(ctx context.Context, accessToken string) (string, string, bool, error) {
 	// Verify Facebook access token
 	userInfo, err := s.verifyFacebookToken(ctx, accessToken)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	if userInfo.Email == "" {
-		return "", false, errors.New("Izin akses email Facebook tidak diberikan")
+		return "", "", false, errors.New("Izin akses email Facebook tidak diberikan")
 	}
 
 	// Check if user exists
@@ -248,25 +248,21 @@ func (s *Service) FacebookAuth(ctx context.Context, accessToken string) (string,
 			CreatedAt:    time.Now(),
 		}
 		if err := s.users.Create(ctx, user); err != nil {
-			return "", false, err
+			return "", "", false, err
 		}
 		s.logger.Info(ctx, "registered new Facebook user "+user.Email)
 	}
 
-	// Generate token
-	tokenString, expires, err := s.signToken(user.ID.Hex())
+	// Generate token pair
+	jwtToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
 	if err != nil {
-		return "", false, err
-	}
-	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
-	if err := s.tokens.Save(ctx, record); err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	if !isNewUser {
 		s.logger.Info(ctx, "Facebook login for user "+user.Email)
 	}
-	return tokenString, isNewUser, nil
+	return jwtToken, refreshToken, isNewUser, nil
 }
 
 // verifyFacebookToken verifies the Facebook access token and returns user info.
@@ -315,19 +311,19 @@ type googleIDTokenInfo struct {
 
 // GoogleMobileAuth authenticates a user with a Google ID token from a mobile client.
 // If the user doesn't exist, it creates a new account.
-func (s *Service) GoogleMobileAuth(ctx context.Context, idToken string) (string, bool, error) {
+func (s *Service) GoogleMobileAuth(ctx context.Context, idToken string) (string, string, bool, error) {
 	// Verify ID token with Google
 	tokenInfo, err := s.verifyGoogleIDToken(ctx, idToken)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	if tokenInfo.Aud != s.googleClientID {
-		return "", false, errors.New("Token Google tidak valid untuk aplikasi ini")
+		return "", "", false, errors.New("Token Google tidak valid untuk aplikasi ini")
 	}
 
 	if tokenInfo.EmailVerified != "true" {
-		return "", false, errors.New("Email Google belum diverifikasi")
+		return "", "", false, errors.New("Email Google belum diverifikasi")
 	}
 
 	// Check if user exists
@@ -343,25 +339,21 @@ func (s *Service) GoogleMobileAuth(ctx context.Context, idToken string) (string,
 			CreatedAt:    time.Now(),
 		}
 		if err := s.users.Create(ctx, user); err != nil {
-			return "", false, err
+			return "", "", false, err
 		}
 		s.logger.Info(ctx, "registered new Google mobile user "+user.Email)
 	}
 
-	// Generate token
-	tokenString, expires, err := s.signToken(user.ID.Hex())
+	// Generate token pair
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
 	if err != nil {
-		return "", false, err
-	}
-	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
-	if err := s.tokens.Save(ctx, record); err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
 	if !isNewUser {
 		s.logger.Info(ctx, "Google mobile login for user "+user.Email)
 	}
-	return tokenString, isNewUser, nil
+	return accessToken, refreshToken, isNewUser, nil
 }
 
 // verifyGoogleIDToken verifies a Google ID token using Google's tokeninfo endpoint.
@@ -426,47 +418,43 @@ func (s *Service) Register(ctx context.Context, fullName, email, password string
 	return nil
 }
 
-// VerifyOTP verifies the OTP code and returns a token if valid.
-func (s *Service) VerifyOTP(ctx context.Context, email, code string) (string, error) {
+// VerifyOTP verifies the OTP code and returns a token pair if valid.
+func (s *Service) VerifyOTP(ctx context.Context, email, code string) (string, string, error) {
 	otp, err := s.otps.FindByEmail(ctx, email)
 	if err != nil {
-		return "", errors.New("Kode verifikasi tidak ditemukan")
+		return "", "", errors.New("Kode verifikasi tidak ditemukan")
 	}
 
 	if otp.Verified {
-		return "", errors.New("Email sudah diverifikasi sebelumnya")
+		return "", "", errors.New("Email sudah diverifikasi sebelumnya")
 	}
 
 	if time.Now().After(otp.ExpiresAt) {
-		return "", errors.New("Kode verifikasi sudah kedaluwarsa")
+		return "", "", errors.New("Kode verifikasi sudah kedaluwarsa")
 	}
 
 	if otp.Code != code {
-		return "", errors.New("Kode verifikasi tidak valid")
+		return "", "", errors.New("Kode verifikasi tidak valid")
 	}
 
 	// Mark as verified
 	if err := s.otps.MarkVerified(ctx, email); err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	// Get user and generate token
+	// Get user and generate token pair
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	tokenString, expires, err := s.signToken(user.ID.Hex())
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
 	if err != nil {
-		return "", err
-	}
-	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
-	if err := s.tokens.Save(ctx, record); err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	s.logger.Info(ctx, "verified OTP for user "+email)
-	return tokenString, nil
+	return accessToken, refreshToken, nil
 }
 
 // ResendOTP resends the OTP code with 1 minute cooldown.
@@ -563,27 +551,23 @@ func (s *Service) generateRandomPassword(length int) string {
 	return string(b)
 }
 
-// Login verifies credentials and issues a bearer token.
-func (s *Service) Login(ctx context.Context, email, password string) (string, error) {
+// Login verifies credentials and issues a bearer token pair (access + refresh).
+func (s *Service) Login(ctx context.Context, email, password string) (string, string, error) {
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", errors.New("invalid credentials")
+		return "", "", errors.New("invalid credentials")
 	}
 
-	tokenString, expires, err := s.signToken(user.ID.Hex())
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
 	if err != nil {
-		return "", err
-	}
-	record := model.Token{Token: tokenString, UserID: user.ID.Hex(), ExpiresAt: expires, CreatedAt: time.Now()}
-	if err := s.tokens.Save(ctx, record); err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	s.logger.Info(ctx, "login for user "+user.Email)
-	return tokenString, nil
+	return accessToken, refreshToken, nil
 }
 
 // Logout revokes an existing token.
@@ -596,6 +580,66 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	}
 	s.logger.Info(ctx, "logout: "+token)
 	return nil
+}
+
+// RefreshToken validates a refresh token and issues a new token pair.
+func (s *Service) RefreshToken(ctx context.Context, refreshTokenString string) (string, string, error) {
+	// Parse and validate the JWT
+	parsed, err := jwt.Parse(refreshTokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(s.secret), nil
+	})
+	if err != nil || !parsed.Valid {
+		return "", "", errors.New("Refresh token tidak valid")
+	}
+
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", "", errors.New("Refresh token tidak valid")
+	}
+
+	// Check token type
+	tokenType, _ := claims["type"].(string)
+	if tokenType != model.TokenTypeRefresh {
+		return "", "", errors.New("Token bukan refresh token")
+	}
+
+	// Check expiration
+	if exp, ok := claims["exp"].(float64); ok {
+		if time.Unix(int64(exp), 0).Before(time.Now()) {
+			return "", "", errors.New("Refresh token sudah kedaluwarsa")
+		}
+	}
+
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		return "", "", errors.New("Refresh token tidak valid")
+	}
+
+	// Verify token exists in database
+	valid, userID, err := s.tokens.IsValid(ctx, refreshTokenString)
+	if err != nil || !valid {
+		return "", "", errors.New("Refresh token telah dicabut")
+	}
+	if userID != sub {
+		return "", "", errors.New("Refresh token tidak valid")
+	}
+
+	// Revoke old refresh token
+	if err := s.tokens.Delete(ctx, refreshTokenString); err != nil {
+		return "", "", err
+	}
+
+	// Issue new token pair
+	accessToken, newRefreshToken, err := s.issueTokenPair(ctx, userID)
+	if err != nil {
+		return "", "", err
+	}
+
+	s.logger.Info(ctx, "refreshed token for user "+userID)
+	return accessToken, newRefreshToken, nil
 }
 
 // DeleteAccount permanently deletes a user account and all associated data.
@@ -747,11 +791,12 @@ func (s *Service) VerifyWhatsAppOTP(ctx context.Context, phone, code string) err
 }
 
 func (s *Service) signToken(userID string) (string, time.Time, error) {
-	expiresAt := time.Now().Add(24 * time.Hour)
+	expiresAt := time.Now().Add(s.accessTokenExpiry)
 	claims := jwt.MapClaims{
-		"sub": userID,
-		"exp": expiresAt.Unix(),
-		"iat": time.Now().Unix(),
+		"sub":  userID,
+		"type": model.TokenTypeAccess,
+		"exp":  expiresAt.Unix(),
+		"iat":  time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(s.secret))
@@ -759,4 +804,43 @@ func (s *Service) signToken(userID string) (string, time.Time, error) {
 		return "", time.Time{}, err
 	}
 	return tokenString, expiresAt, nil
+}
+
+func (s *Service) signRefreshToken(userID string) (string, time.Time, error) {
+	expiresAt := time.Now().Add(s.refreshTokenExpiry)
+	claims := jwt.MapClaims{
+		"sub":  userID,
+		"type": model.TokenTypeRefresh,
+		"exp":  expiresAt.Unix(),
+		"iat":  time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(s.secret))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return tokenString, expiresAt, nil
+}
+
+// issueTokenPair generates and saves both an access token and a refresh token.
+func (s *Service) issueTokenPair(ctx context.Context, userID string) (string, string, error) {
+	accessToken, accessExpires, err := s.signToken(userID)
+	if err != nil {
+		return "", "", err
+	}
+	accessRecord := model.Token{Token: accessToken, UserID: userID, Type: model.TokenTypeAccess, ExpiresAt: accessExpires, CreatedAt: time.Now()}
+	if err := s.tokens.Save(ctx, accessRecord); err != nil {
+		return "", "", err
+	}
+
+	refreshToken, refreshExpires, err := s.signRefreshToken(userID)
+	if err != nil {
+		return "", "", err
+	}
+	refreshRecord := model.Token{Token: refreshToken, UserID: userID, Type: model.TokenTypeRefresh, ExpiresAt: refreshExpires, CreatedAt: time.Now()}
+	if err := s.tokens.Save(ctx, refreshRecord); err != nil {
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
 }

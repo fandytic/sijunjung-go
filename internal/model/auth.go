@@ -32,3 +32,9 @@ type FacebookAuthRequest struct {
 type GoogleMobileAuthRequest struct {
 	IDToken string `json:"id_token" example:"eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ..."`
 }
+
+// RefreshTokenRequest defines payload for refreshing an access token.
+// @Description Request body for refreshing access token
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+}

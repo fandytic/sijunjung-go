@@ -34,6 +34,9 @@ definitions:
       is_new_user:
         example: true
         type: boolean
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
       token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
@@ -44,6 +47,9 @@ definitions:
       is_new_user:
         example: true
         type: boolean
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
       token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
@@ -58,6 +64,9 @@ definitions:
   http.TokenData:
     description: Token data
     properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
       token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
@@ -91,6 +100,13 @@ definitions:
         type: string
       password:
         example: password123
+        type: string
+    type: object
+  model.RefreshTokenRequest:
+    description: Request body for refreshing access token
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
   model.RegisterRequest:
@@ -377,6 +393,42 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user
+      tags:
+      - auth
+  /api/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: Use a refresh token to get a new access token and refresh token
+        pair
+      parameters:
+      - description: Refresh token request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/http.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.TokenData'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/http.APIErrorResponse'
+      summary: Refresh access token
       tags:
       - auth
   /api/register:
