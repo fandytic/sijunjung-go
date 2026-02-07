@@ -12,7 +12,8 @@ import (
 // TokenData represents the token response data.
 // @Description Token data
 type TokenData struct {
-	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	Token        string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	RefreshToken string `json:"refresh_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
 }
 
 // UserData represents the current user data.
@@ -24,15 +25,17 @@ type UserData struct {
 // GoogleAuthData represents the Google auth response data.
 // @Description Google auth data
 type GoogleAuthData struct {
-	Token     string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
-	IsNewUser bool   `json:"is_new_user" example:"true"`
+	Token        string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	RefreshToken string `json:"refresh_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	IsNewUser    bool   `json:"is_new_user" example:"true"`
 }
 
 // FacebookAuthData represents the Facebook auth response data.
 // @Description Facebook auth data
 type FacebookAuthData struct {
-	Token     string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
-	IsNewUser bool   `json:"is_new_user" example:"true"`
+	Token        string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	RefreshToken string `json:"refresh_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	IsNewUser    bool   `json:"is_new_user" example:"true"`
 }
 
 // AuthHandler exposes HTTP endpoints for authentication flows.
@@ -86,12 +89,12 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.service.VerifyOTP(r.Context(), req.Email, req.Code)
+	token, refreshToken, err := h.service.VerifyOTP(r.Context(), req.Email, req.Code)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	respondSuccess(w, http.StatusOK, "Email berhasil diverifikasi", TokenData{Token: token})
+	respondSuccess(w, http.StatusOK, "Email berhasil diverifikasi", TokenData{Token: token, RefreshToken: refreshToken})
 }
 
 // ResendOTP godoc
@@ -185,7 +188,7 @@ func (h *AuthHandler) GoogleAuthCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	token, isNewUser, err := h.service.GoogleCallback(r.Context(), code)
+	token, refreshToken, isNewUser, err := h.service.GoogleCallback(r.Context(), code)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -195,7 +198,7 @@ func (h *AuthHandler) GoogleAuthCallback(w http.ResponseWriter, r *http.Request)
 	if isNewUser {
 		message = "Registrasi dengan Google berhasil"
 	}
-	respondSuccess(w, http.StatusOK, message, GoogleAuthData{Token: token, IsNewUser: isNewUser})
+	respondSuccess(w, http.StatusOK, message, GoogleAuthData{Token: token, RefreshToken: refreshToken, IsNewUser: isNewUser})
 }
 
 // FacebookAuth godoc
@@ -215,7 +218,7 @@ func (h *AuthHandler) FacebookAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, isNewUser, err := h.service.FacebookAuth(r.Context(), req.AccessToken)
+	token, refreshToken, isNewUser, err := h.service.FacebookAuth(r.Context(), req.AccessToken)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -225,7 +228,7 @@ func (h *AuthHandler) FacebookAuth(w http.ResponseWriter, r *http.Request) {
 	if isNewUser {
 		message = "Registrasi dengan Facebook berhasil"
 	}
-	respondSuccess(w, http.StatusOK, message, FacebookAuthData{Token: token, IsNewUser: isNewUser})
+	respondSuccess(w, http.StatusOK, message, FacebookAuthData{Token: token, RefreshToken: refreshToken, IsNewUser: isNewUser})
 }
 
 // GoogleAuthMobile godoc
@@ -250,7 +253,7 @@ func (h *AuthHandler) GoogleAuthMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, isNewUser, err := h.service.GoogleMobileAuth(r.Context(), req.IDToken)
+	token, refreshToken, isNewUser, err := h.service.GoogleMobileAuth(r.Context(), req.IDToken)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -260,7 +263,7 @@ func (h *AuthHandler) GoogleAuthMobile(w http.ResponseWriter, r *http.Request) {
 	if isNewUser {
 		message = "Registrasi dengan Google berhasil"
 	}
-	respondSuccess(w, http.StatusOK, message, GoogleAuthData{Token: token, IsNewUser: isNewUser})
+	respondSuccess(w, http.StatusOK, message, GoogleAuthData{Token: token, RefreshToken: refreshToken, IsNewUser: isNewUser})
 }
 
 // Login godoc
@@ -281,31 +284,68 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.service.Login(r.Context(), req.Email, req.Password)
+	token, refreshToken, err := h.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		respondError(w, http.StatusUnauthorized, "Email atau password salah")
 		return
 	}
-	respondSuccess(w, http.StatusOK, "Login berhasil", TokenData{Token: token})
+	respondSuccess(w, http.StatusOK, "Login berhasil", TokenData{Token: token, RefreshToken: refreshToken})
 }
 
 // Logout godoc
 // @Summary Logout user
-// @Description Revoke the current bearer token
+// @Description Revoke the current access token and optionally the refresh token
 // @Tags auth
 // @Security BearerAuth
+// @Accept json
 // @Produce json
+// @Param request body model.LogoutRequest false "Logout request with optional refresh token"
 // @Success 200 {object} APIResponse{data=nil} "Logout successful"
 // @Failure 400 {object} APIErrorResponse "Invalid or missing token"
 // @Failure 401 {object} APIErrorResponse "Unauthorized"
 // @Router /api/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	token := extractToken(r)
-	if err := h.service.Logout(r.Context(), token); err != nil {
+	accessToken := extractToken(r)
+
+	var req model.LogoutRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if err := h.service.Logout(r.Context(), accessToken, req.RefreshToken); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	respondSuccessNoData(w, http.StatusOK, "Logout berhasil")
+}
+
+// RefreshToken godoc
+// @Summary Refresh access token
+// @Description Use a refresh token to get a new access token and refresh token pair
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body model.RefreshTokenRequest true "Refresh token request"
+// @Success 200 {object} APIResponse{data=TokenData} "Token refreshed successfully"
+// @Failure 400 {object} APIErrorResponse "Invalid request body"
+// @Failure 401 {object} APIErrorResponse "Invalid or expired refresh token"
+// @Router /api/refresh-token [post]
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req model.RefreshTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Format data tidak valid")
+		return
+	}
+
+	if req.RefreshToken == "" {
+		respondError(w, http.StatusBadRequest, "Refresh token harus diisi")
+		return
+	}
+
+	token, refreshToken, err := h.service.RefreshToken(r.Context(), req.RefreshToken)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	respondSuccess(w, http.StatusOK, "Token berhasil diperbarui", TokenData{Token: token, RefreshToken: refreshToken})
 }
 
 // CurrentUser godoc

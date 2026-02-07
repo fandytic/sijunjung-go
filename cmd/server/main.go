@@ -63,7 +63,7 @@ func main() {
 	emailService := email.NewMailjetService(cfg.MailjetAPIKey, cfg.MailjetSecretKey, cfg.MailjetFromName, cfg.MailjetFromEmail)
 	whatsappService := whatsapp.NewFonnteService(cfg.FonnteToken)
 
-	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, whatsappService, cfg.AuthSecret, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
+	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, whatsappService, cfg.AuthSecret, cfg.AccessTokenExpiry, cfg.RefreshTokenExpiry, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
 
 	router := chi.NewRouter()
 	router.Use(cors.Handler(cors.Options{
@@ -89,6 +89,7 @@ func main() {
 		r.Post("/resend-otp", authHandler.ResendOTP)
 		r.Post("/reset-password", authHandler.ResetPassword)
 		r.Post("/login", authHandler.Login)
+		r.Post("/refresh-token", authHandler.RefreshToken)
 		r.Get("/auth/google", authHandler.GoogleAuthRedirect)
 		r.Get("/auth/google/callback", authHandler.GoogleAuthCallback)
 		r.Post("/auth/facebook", authHandler.FacebookAuth)
