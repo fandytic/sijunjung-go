@@ -15,24 +15,252 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/account": {
+        "/api/cms/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all accounts filtered by role (Super Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cms"
+                ],
+                "summary": "List accounts by role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role filter (admin, merchant, or mitra)",
+                        "name": "role",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Accounts list",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid role parameter",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Super Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new Admin, Merchant, or Mitra account (Super Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cms"
+                ],
+                "summary": "Create account",
+                "parameters": [
+                    {
+                        "description": "Create account request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Account created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or email already exists",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Super Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cms/accounts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a single account by ID (Super Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cms"
+                ],
+                "summary": "Get account detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account detail",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Super Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Account not found",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an account's full name and/or email (Super Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cms"
+                ],
+                "summary": "Update account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update account request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account updated",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Super Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Permanently delete the current user account and all associated data",
+                "description": "Permanently delete an account (Super Admin only)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "cms"
                 ],
-                "summary": "Delete user account",
+                "summary": "Delete account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Account deleted successfully",
+                        "description": "Account deleted",
                         "schema": {
                             "allOf": [
                                 {
@@ -50,7 +278,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Failed to delete account",
+                        "description": "Failed to delete",
                         "schema": {
                             "$ref": "#/definitions/http.APIErrorResponse"
                         }
@@ -60,55 +288,9 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/http.APIErrorResponse"
                         }
-                    }
-                }
-            }
-        },
-        "/api/auth/facebook": {
-            "post": {
-                "description": "Authenticate or register user with Facebook access token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Authenticate with Facebook",
-                "parameters": [
-                    {
-                        "description": "Facebook auth request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.FacebookAuthRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Authentication successful",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/http.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/http.FacebookAuthData"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
                     },
-                    "400": {
-                        "description": "Invalid Facebook token",
+                    "403": {
+                        "description": "Forbidden - Super Admin only",
                         "schema": {
                             "$ref": "#/definitions/http.APIErrorResponse"
                         }
@@ -116,108 +298,85 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/auth/google": {
-            "get": {
-                "description": "Redirects user to Google OAuth consent page for login/registration",
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Redirect to Google OAuth",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "State parameter for CSRF protection",
-                        "name": "state",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Redirect to Google OAuth"
-                    }
-                }
-            }
-        },
-        "/api/auth/google-mobile": {
+        "/api/cms/accounts/{id}/reset-password": {
             "post": {
-                "description": "Authenticate or register user with Google ID token from mobile client (Flutter)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Authenticate with Google (Mobile)",
-                "parameters": [
+                "security": [
                     {
-                        "description": "Google mobile auth request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.GoogleMobileAuthRequest"
-                        }
+                        "BearerAuth": []
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "Authentication successful",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/http.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/http.GoogleAuthData"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid Google token",
-                        "schema": {
-                            "$ref": "#/definitions/http.APIErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/auth/google/callback": {
-            "get": {
-                "description": "Handle callback from Google OAuth and return JWT token",
+                "description": "Reset an account's password and return the new password (Super Admin only)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "cms"
                 ],
-                "summary": "Google OAuth callback",
+                "summary": "Reset account password",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Authorization code from Google",
-                        "name": "code",
-                        "in": "query",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "State parameter for CSRF protection",
-                        "name": "state",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Authentication successful",
+                        "description": "Password reset successfully",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Account not found",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Super Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cms/login": {
+            "post": {
+                "description": "Authenticate Super Admin or Admin with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cms"
+                ],
+                "summary": "Login CMS",
+                "parameters": [
+                    {
+                        "description": "Login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
                         "schema": {
                             "allOf": [
                                 {
@@ -227,7 +386,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/http.GoogleAuthData"
+                                            "$ref": "#/definitions/http.TokenData"
                                         }
                                     }
                                 }
@@ -235,7 +394,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid authorization code",
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials or unauthorized role",
                         "schema": {
                             "$ref": "#/definitions/http.APIErrorResponse"
                         }
@@ -245,7 +410,7 @@ const docTemplate = `{
         },
         "/api/login": {
             "post": {
-                "description": "Authenticate user with email and password to get bearer token",
+                "description": "Authenticate user with email and password to get bearer token (legacy endpoint, use /api/user/login instead)",
                 "consumes": [
                     "application/json"
                 ],
@@ -253,9 +418,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "legacy"
                 ],
-                "summary": "Login user",
+                "summary": "Login user (legacy)",
                 "parameters": [
                     {
                         "description": "Login request",
@@ -301,7 +466,483 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/logout": {
+        "/api/merchant/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get merchant dashboard data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "merchant"
+                ],
+                "summary": "Merchant dashboard",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard data",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Merchant only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/merchant/login": {
+            "post": {
+                "description": "Authenticate merchant with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "merchant"
+                ],
+                "summary": "Login merchant",
+                "parameters": [
+                    {
+                        "description": "Login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials or unauthorized role",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mitra/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get mitra dashboard data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mitra"
+                ],
+                "summary": "Mitra dashboard",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard data",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Mitra only",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mitra/login": {
+            "post": {
+                "description": "Authenticate mitra with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mitra"
+                ],
+                "summary": "Login mitra",
+                "parameters": [
+                    {
+                        "description": "Login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials or unauthorized role",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/account": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Permanently delete the current user account and all associated data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Delete user account",
+                "responses": {
+                    "200": {
+                        "description": "Account deleted successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Failed to delete account",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/auth/facebook": {
+            "post": {
+                "description": "Authenticate or register user with Facebook access token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Authenticate with Facebook",
+                "parameters": [
+                    {
+                        "description": "Facebook auth request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.FacebookAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.FacebookAuthData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Facebook token",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/auth/google": {
+            "get": {
+                "description": "Redirects user to Google OAuth consent page for login/registration",
+                "tags": [
+                    "user"
+                ],
+                "summary": "Redirect to Google OAuth",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "State parameter for CSRF protection",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Google OAuth"
+                    }
+                }
+            }
+        },
+        "/api/user/auth/google-mobile": {
+            "post": {
+                "description": "Authenticate or register user with Google ID token from mobile client (Flutter)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Authenticate with Google (Mobile)",
+                "parameters": [
+                    {
+                        "description": "Google mobile auth request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.GoogleMobileAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.GoogleAuthData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Google token",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/auth/google/callback": {
+            "get": {
+                "description": "Handle callback from Google OAuth and return JWT token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Google OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code from Google",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter for CSRF protection",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.GoogleAuthData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid authorization code",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/login": {
+            "post": {
+                "description": "Authenticate user with email and password (validates role=user)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Login user",
+                "parameters": [
+                    {
+                        "description": "Login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/http.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials or unauthorized role",
+                        "schema": {
+                            "$ref": "#/definitions/http.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/logout": {
             "post": {
                 "security": [
                     {
@@ -316,7 +957,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Logout user",
                 "parameters": [
@@ -363,19 +1004,19 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/me": {
+        "/api/user/me": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get the current authenticated user information",
+                "description": "Get the current authenticated user information including role",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Get current user",
                 "responses": {
@@ -406,7 +1047,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/refresh-token": {
+        "/api/user/refresh-token": {
             "post": {
                 "description": "Use a refresh token to get a new access token and refresh token pair",
                 "consumes": [
@@ -416,7 +1057,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Refresh access token",
                 "parameters": [
@@ -464,7 +1105,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/register": {
+        "/api/user/register": {
             "post": {
                 "description": "Register a new user with full name, email, and password. Sends OTP to email for verification.",
                 "consumes": [
@@ -474,7 +1115,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Register a new user",
                 "parameters": [
@@ -516,7 +1157,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/resend-otp": {
+        "/api/user/resend-otp": {
             "post": {
                 "description": "Resend the OTP code to email (1 minute cooldown)",
                 "consumes": [
@@ -526,7 +1167,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Resend OTP code",
                 "parameters": [
@@ -574,7 +1215,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/reset-password": {
+        "/api/user/reset-password": {
             "post": {
                 "description": "Reset password by sending a new random password to user's email",
                 "consumes": [
@@ -584,7 +1225,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Reset password",
                 "parameters": [
@@ -626,7 +1267,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/sijunjung": {
+        "/api/user/sijunjung": {
             "get": {
                 "security": [
                     {
@@ -669,7 +1310,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/verify-otp": {
+        "/api/user/verify-otp": {
             "post": {
                 "description": "Verify the OTP code sent to email and get bearer token",
                 "consumes": [
@@ -679,7 +1320,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Verify OTP code",
                 "parameters": [
@@ -721,7 +1362,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/whatsapp/send-otp": {
+        "/api/user/whatsapp/send-otp": {
             "post": {
                 "description": "Send an OTP code to the specified WhatsApp number (1 minute cooldown)",
                 "consumes": [
@@ -731,7 +1372,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "whatsapp"
+                    "user"
                 ],
                 "summary": "Send OTP via WhatsApp",
                 "parameters": [
@@ -779,7 +1420,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/whatsapp/verify-otp": {
+        "/api/user/whatsapp/verify-otp": {
             "post": {
                 "description": "Verify the OTP code sent to WhatsApp",
                 "consumes": [
@@ -789,7 +1430,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "whatsapp"
+                    "user"
                 ],
                 "summary": "Verify WhatsApp OTP code",
                 "parameters": [
@@ -936,9 +1577,39 @@ const docTemplate = `{
             "description": "User data",
             "type": "object",
             "properties": {
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                },
                 "user_id": {
                     "type": "string",
                     "example": "507f1f77bcf86cd799439011"
+                }
+            }
+        },
+        "model.CreateAccountRequest": {
+            "description": "Request body for creating a new account by Super Admin",
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "admin@sijunjung.go"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Admin User"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "password123"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.UserRole"
+                        }
+                    ],
+                    "example": "admin"
                 }
             }
         },
@@ -1044,6 +1715,37 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UpdateAccountRequest": {
+            "description": "Request body for updating an account",
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "newemail@sijunjung.go"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Updated Name"
+                }
+            }
+        },
+        "model.UserRole": {
+            "type": "string",
+            "enum": [
+                "super_admin",
+                "admin",
+                "merchant",
+                "mitra",
+                "user"
+            ],
+            "x-enum-varnames": [
+                "RoleSuperAdmin",
+                "RoleAdmin",
+                "RoleMerchant",
+                "RoleMitra",
+                "RoleUser"
+            ]
+        },
         "model.VerifyOTPRequest": {
             "description": "Request body for OTP verification",
             "type": "object",
@@ -1085,12 +1787,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "2.0",
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Sijunjung Go API",
-	Description:      "API for Sijunjung Go application with authentication support",
+	Description:      "API for Sijunjung Go application with multi-role authentication support",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
