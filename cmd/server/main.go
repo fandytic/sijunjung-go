@@ -1,8 +1,8 @@
 package main
 
 // @title Sijunjung Go API
-// @version 1.0
-// @description API for Sijunjung Go application with authentication support
+// @version 2.0
+// @description API for Sijunjung Go application with multi-role authentication support
 // @host localhost:8080
 // @BasePath /
 // @securityDefinitions.apikey BearerAuth
@@ -31,6 +31,7 @@ import (
 	"github.com/example/sijunjung-go/internal/infra/logging"
 	mongorepo "github.com/example/sijunjung-go/internal/infra/mongo"
 	"github.com/example/sijunjung-go/internal/infra/whatsapp"
+	"github.com/example/sijunjung-go/internal/model"
 	"github.com/example/sijunjung-go/internal/usecase/auth"
 
 	_ "github.com/example/sijunjung-go/internal/docs"
@@ -67,6 +68,11 @@ func main() {
 
 	authService := auth.NewService(userRepo, tokenRepo, otpRepo, emailService, whatsappService, cfg.AuthSecret, cfg.AccessTokenExpiry, cfg.RefreshTokenExpiry, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL, cfg.FacebookAppID, cfg.FacebookAppSecret, appLogger)
 
+	// Seed super admin account
+	if err := authService.SeedSuperAdmin(context.Background(), cfg.SuperAdminEmail, cfg.SuperAdminPassword); err != nil {
+		log.Fatalf("failed to seed super admin: %v", err)
+	}
+
 	router := chi.NewRouter()
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -82,10 +88,115 @@ func main() {
 
 	authHandler := delivery.NewAuthHandler(authService)
 	authMiddleware := delivery.NewAuthMiddleware(authService)
+	cmsHandler := delivery.NewCMSHandler(authService)
+	merchantHandler := delivery.NewMerchantHandler(authService)
+	mitraHandler := delivery.NewMitraHandler(authService)
 
 	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	router.Route("/api", func(r chi.Router) {
+
+		// ========================================
+		// USER routes
+		// ========================================
+		r.Route("/user", func(user chi.Router) {
+			// Public
+			user.Post("/register", authHandler.Register)
+			user.Post("/verify-otp", authHandler.VerifyOTP)
+			user.Post("/resend-otp", authHandler.ResendOTP)
+			user.Post("/reset-password", authHandler.ResetPassword)
+			user.Post("/login", authHandler.UserLogin)
+			user.Post("/refresh-token", authHandler.RefreshToken)
+
+			// OAuth
+			user.Get("/auth/google", authHandler.GoogleAuthRedirect)
+			user.Get("/auth/google/callback", authHandler.GoogleAuthCallback)
+			user.Post("/auth/facebook", authHandler.FacebookAuth)
+			user.Post("/auth/google-mobile", authHandler.GoogleAuthMobile)
+
+			// WhatsApp OTP
+			user.Post("/whatsapp/send-otp", authHandler.SendWhatsAppOTP)
+			user.Post("/whatsapp/verify-otp", authHandler.VerifyWhatsAppOTP)
+
+			// Protected (role=user)
+			user.Group(func(private chi.Router) {
+				private.Use(authMiddleware.Handler)
+				private.Use(delivery.RequireRole(model.RoleUser))
+				private.Post("/logout", authHandler.Logout)
+				private.Get("/me", authHandler.CurrentUser)
+				private.Delete("/account", authHandler.DeleteAccount)
+				private.Get("/sijunjung", delivery.SijunjungHandler)
+			})
+		})
+
+		// ========================================
+		// CMS routes (Super Admin + Admin)
+		// ========================================
+		r.Route("/cms", func(cms chi.Router) {
+			// Public
+			cms.Post("/login", cmsHandler.Login)
+			cms.Post("/refresh-token", authHandler.RefreshToken)
+
+			// Protected - Super Admin OR Admin
+			cms.Group(func(private chi.Router) {
+				private.Use(authMiddleware.Handler)
+				private.Use(delivery.RequireRole(model.RoleSuperAdmin, model.RoleAdmin))
+				private.Post("/logout", authHandler.Logout)
+				private.Get("/me", authHandler.CurrentUser)
+			})
+
+			// Protected - Super Admin ONLY (account management)
+			cms.Group(func(superOnly chi.Router) {
+				superOnly.Use(authMiddleware.Handler)
+				superOnly.Use(delivery.RequireRole(model.RoleSuperAdmin))
+				superOnly.Post("/accounts", cmsHandler.CreateAccount)
+				superOnly.Get("/accounts", cmsHandler.ListAccounts)
+				superOnly.Get("/accounts/{id}", cmsHandler.GetAccount)
+				superOnly.Put("/accounts/{id}", cmsHandler.UpdateAccount)
+				superOnly.Delete("/accounts/{id}", cmsHandler.DeleteAccount)
+				superOnly.Post("/accounts/{id}/reset-password", cmsHandler.ResetAccountPassword)
+			})
+		})
+
+		// ========================================
+		// MERCHANT routes
+		// ========================================
+		r.Route("/merchant", func(merchant chi.Router) {
+			// Public
+			merchant.Post("/login", merchantHandler.Login)
+			merchant.Post("/refresh-token", authHandler.RefreshToken)
+
+			// Protected (role=merchant)
+			merchant.Group(func(private chi.Router) {
+				private.Use(authMiddleware.Handler)
+				private.Use(delivery.RequireRole(model.RoleMerchant))
+				private.Post("/logout", authHandler.Logout)
+				private.Get("/me", authHandler.CurrentUser)
+				private.Get("/dashboard", merchantHandler.Dashboard)
+			})
+		})
+
+		// ========================================
+		// MITRA routes
+		// ========================================
+		r.Route("/mitra", func(mitra chi.Router) {
+			// Public
+			mitra.Post("/login", mitraHandler.Login)
+			mitra.Post("/refresh-token", authHandler.RefreshToken)
+
+			// Protected (role=mitra)
+			mitra.Group(func(private chi.Router) {
+				private.Use(authMiddleware.Handler)
+				private.Use(delivery.RequireRole(model.RoleMitra))
+				private.Post("/logout", authHandler.Logout)
+				private.Get("/me", authHandler.CurrentUser)
+				private.Get("/dashboard", mitraHandler.Dashboard)
+			})
+		})
+
+		// ========================================
+		// LEGACY routes (backward compatibility)
+		// ========================================
 		r.Post("/register", authHandler.Register)
 		r.Post("/verify-otp", authHandler.VerifyOTP)
 		r.Post("/resend-otp", authHandler.ResendOTP)
@@ -96,8 +207,6 @@ func main() {
 		r.Get("/auth/google/callback", authHandler.GoogleAuthCallback)
 		r.Post("/auth/facebook", authHandler.FacebookAuth)
 		r.Post("/auth/google-mobile", authHandler.GoogleAuthMobile)
-
-		// WhatsApp OTP routes
 		r.Post("/whatsapp/send-otp", authHandler.SendWhatsAppOTP)
 		r.Post("/whatsapp/verify-otp", authHandler.VerifyWhatsAppOTP)
 

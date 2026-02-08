@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/example/sijunjung-go/internal/model"
 	"github.com/example/sijunjung-go/internal/usecase/auth"
 )
 
@@ -34,13 +35,32 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		}
 		tokenString := parts[1]
 
-		userID, err := m.service.ValidateToken(ctx, tokenString)
+		userID, role, err := m.service.ValidateToken(ctx, tokenString)
 		if err != nil {
 			respondError(w, http.StatusUnauthorized, "Sesi telah berakhir, silakan login kembali")
 			return
 		}
 
 		ctx = context.WithValue(ctx, ContextUserIDKey, userID)
+		ctx = context.WithValue(ctx, ContextUserRoleKey, role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// RequireRole returns middleware that restricts access to users with one of the given roles.
+func RequireRole(allowed ...model.UserRole) func(http.Handler) http.Handler {
+	allowedSet := make(map[string]bool, len(allowed))
+	for _, r := range allowed {
+		allowedSet[string(r)] = true
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role, _ := r.Context().Value(ContextUserRoleKey).(string)
+			if !allowedSet[role] {
+				respondError(w, http.StatusForbidden, "Anda tidak memiliki akses ke resource ini")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
