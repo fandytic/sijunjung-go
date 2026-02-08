@@ -44,3 +44,19 @@ type RefreshTokenRequest struct {
 type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
 }
+
+// CreateAccountRequest defines payload for Super Admin creating Admin/Merchant/Mitra accounts.
+// @Description Request body for creating a new account by Super Admin
+type CreateAccountRequest struct {
+	FullName string   `json:"full_name" example:"Admin User"`
+	Email    string   `json:"email" example:"admin@sijunjung.go"`
+	Password string   `json:"password" example:"password123"`
+	Role     UserRole `json:"role" example:"admin"`
+}
+
+// UpdateAccountRequest defines payload for Super Admin updating an account.
+// @Description Request body for updating an account
+type UpdateAccountRequest struct {
+	FullName string `json:"full_name,omitempty" example:"Updated Name"`
+	Email    string `json:"email,omitempty" example:"newemail@sijunjung.go"`
+}

@@ -140,6 +140,7 @@ func (s *Service) GoogleCallback(ctx context.Context, code string) (string, stri
 		user = &model.User{
 			FullName:     userInfo.Name,
 			Email:        userInfo.Email,
+			Role:         model.RoleUser,
 			AuthProvider: model.AuthProviderGoogle,
 			CreatedAt:    time.Now(),
 		}
@@ -150,7 +151,7 @@ func (s *Service) GoogleCallback(ctx context.Context, code string) (string, stri
 	}
 
 	// Generate token pair
-	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex(), userRole(user))
 	if err != nil {
 		return "", "", false, err
 	}
@@ -244,6 +245,7 @@ func (s *Service) FacebookAuth(ctx context.Context, accessToken string) (string,
 		user = &model.User{
 			FullName:     userInfo.Name,
 			Email:        userInfo.Email,
+			Role:         model.RoleUser,
 			AuthProvider: model.AuthProviderFacebook,
 			CreatedAt:    time.Now(),
 		}
@@ -254,7 +256,7 @@ func (s *Service) FacebookAuth(ctx context.Context, accessToken string) (string,
 	}
 
 	// Generate token pair
-	jwtToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
+	jwtToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex(), userRole(user))
 	if err != nil {
 		return "", "", false, err
 	}
@@ -335,6 +337,7 @@ func (s *Service) GoogleMobileAuth(ctx context.Context, idToken string) (string,
 		user = &model.User{
 			FullName:     tokenInfo.Name,
 			Email:        tokenInfo.Email,
+			Role:         model.RoleUser,
 			AuthProvider: model.AuthProviderGoogle,
 			CreatedAt:    time.Now(),
 		}
@@ -345,7 +348,7 @@ func (s *Service) GoogleMobileAuth(ctx context.Context, idToken string) (string,
 	}
 
 	// Generate token pair
-	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex(), userRole(user))
 	if err != nil {
 		return "", "", false, err
 	}
@@ -390,7 +393,7 @@ func (s *Service) Register(ctx context.Context, fullName, email, password string
 		return err
 	}
 
-	user := &model.User{FullName: fullName, Email: email, PasswordHash: string(hashed), AuthProvider: model.AuthProviderLocal, CreatedAt: time.Now()}
+	user := &model.User{FullName: fullName, Email: email, PasswordHash: string(hashed), Role: model.RoleUser, AuthProvider: model.AuthProviderLocal, CreatedAt: time.Now()}
 	if err := s.users.Create(ctx, user); err != nil {
 		return err
 	}
@@ -448,7 +451,7 @@ func (s *Service) VerifyOTP(ctx context.Context, email, code string) (string, st
 		return "", "", err
 	}
 
-	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex(), userRole(user))
 	if err != nil {
 		return "", "", err
 	}
@@ -561,7 +564,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, st
 		return "", "", errors.New("invalid credentials")
 	}
 
-	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex())
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex(), userRole(user))
 	if err != nil {
 		return "", "", err
 	}
@@ -632,13 +635,19 @@ func (s *Service) RefreshToken(ctx context.Context, refreshTokenString string) (
 		return "", "", errors.New("Refresh token tidak valid")
 	}
 
+	// Extract role from claims (backward compat: default to "user")
+	role, _ := claims["role"].(string)
+	if role == "" {
+		role = string(model.RoleUser)
+	}
+
 	// Revoke old refresh token
 	if err := s.tokens.Delete(ctx, refreshTokenString); err != nil {
 		return "", "", err
 	}
 
 	// Issue new token pair
-	accessToken, newRefreshToken, err := s.issueTokenPair(ctx, userID)
+	accessToken, newRefreshToken, err := s.issueTokenPair(ctx, userID, role)
 	if err != nil {
 		return "", "", err
 	}
@@ -674,8 +683,8 @@ func (s *Service) DeleteAccount(ctx context.Context, userID string) error {
 	return nil
 }
 
-// ValidateToken parses and validates a bearer token, returning the user ID when valid.
-func (s *Service) ValidateToken(ctx context.Context, tokenString string) (string, error) {
+// ValidateToken parses and validates a bearer token, returning the user ID and role when valid.
+func (s *Service) ValidateToken(ctx context.Context, tokenString string) (string, string, error) {
 	parsed, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -683,27 +692,31 @@ func (s *Service) ValidateToken(ctx context.Context, tokenString string) (string
 		return []byte(s.secret), nil
 	})
 	if err != nil || !parsed.Valid {
-		return "", errors.New("unable to parse token")
+		return "", "", errors.New("unable to parse token")
 	}
 
 	if claims, ok := parsed.Claims.(jwt.MapClaims); ok {
 		if exp, ok := claims["exp"].(float64); ok {
 			if time.Unix(int64(exp), 0).Before(time.Now()) {
-				return "", errors.New("token expired")
+				return "", "", errors.New("token expired")
 			}
 		}
 		if sub, ok := claims["sub"].(string); ok {
 			valid, userID, err := s.tokens.IsValid(ctx, tokenString)
 			if err != nil || !valid {
-				return "", errors.New("token revoked")
+				return "", "", errors.New("token revoked")
 			}
 			if userID != sub {
-				return "", errors.New("token subject mismatch")
+				return "", "", errors.New("token subject mismatch")
 			}
-			return sub, nil
+			role, _ := claims["role"].(string)
+			if role == "" {
+				role = string(model.RoleUser)
+			}
+			return sub, role, nil
 		}
 	}
-	return "", errors.New("invalid token claims")
+	return "", "", errors.New("invalid token claims")
 }
 
 // normalizePhone converts phone number to standard format (628xxx).
@@ -795,10 +808,11 @@ func (s *Service) VerifyWhatsAppOTP(ctx context.Context, phone, code string) err
 	return nil
 }
 
-func (s *Service) signToken(userID string) (string, time.Time, error) {
+func (s *Service) signToken(userID string, role string) (string, time.Time, error) {
 	expiresAt := time.Now().Add(s.accessTokenExpiry)
 	claims := jwt.MapClaims{
 		"sub":  userID,
+		"role": role,
 		"type": model.TokenTypeAccess,
 		"exp":  expiresAt.Unix(),
 		"iat":  time.Now().Unix(),
@@ -811,10 +825,11 @@ func (s *Service) signToken(userID string) (string, time.Time, error) {
 	return tokenString, expiresAt, nil
 }
 
-func (s *Service) signRefreshToken(userID string) (string, time.Time, error) {
+func (s *Service) signRefreshToken(userID string, role string) (string, time.Time, error) {
 	expiresAt := time.Now().Add(s.refreshTokenExpiry)
 	claims := jwt.MapClaims{
 		"sub":  userID,
+		"role": role,
 		"type": model.TokenTypeRefresh,
 		"exp":  expiresAt.Unix(),
 		"iat":  time.Now().Unix(),
@@ -828,8 +843,8 @@ func (s *Service) signRefreshToken(userID string) (string, time.Time, error) {
 }
 
 // issueTokenPair generates and saves both an access token and a refresh token.
-func (s *Service) issueTokenPair(ctx context.Context, userID string) (string, string, error) {
-	accessToken, accessExpires, err := s.signToken(userID)
+func (s *Service) issueTokenPair(ctx context.Context, userID string, role string) (string, string, error) {
+	accessToken, accessExpires, err := s.signToken(userID, role)
 	if err != nil {
 		return "", "", err
 	}
@@ -838,7 +853,7 @@ func (s *Service) issueTokenPair(ctx context.Context, userID string) (string, st
 		return "", "", err
 	}
 
-	refreshToken, refreshExpires, err := s.signRefreshToken(userID)
+	refreshToken, refreshExpires, err := s.signRefreshToken(userID, role)
 	if err != nil {
 		return "", "", err
 	}
@@ -848,4 +863,160 @@ func (s *Service) issueTokenPair(ctx context.Context, userID string) (string, st
 	}
 
 	return accessToken, refreshToken, nil
+}
+
+// userRole returns the user's role, defaulting to RoleUser for backward compatibility.
+func userRole(u *model.User) string {
+	if u.Role == "" {
+		return string(model.RoleUser)
+	}
+	return string(u.Role)
+}
+
+// LoginWithRole verifies credentials and checks that the user has one of the expected roles.
+func (s *Service) LoginWithRole(ctx context.Context, email, password string, expectedRoles ...model.UserRole) (string, string, error) {
+	user, err := s.users.FindByEmail(ctx, email)
+	if err != nil {
+		return "", "", errors.New("Email atau password salah")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return "", "", errors.New("Email atau password salah")
+	}
+
+	role := userRole(user)
+
+	allowed := false
+	for _, r := range expectedRoles {
+		if role == string(r) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return "", "", errors.New("Akun Anda tidak memiliki akses ke layanan ini")
+	}
+
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user.ID.Hex(), role)
+	if err != nil {
+		return "", "", err
+	}
+
+	s.logger.Info(ctx, "login for "+role+" user "+user.Email)
+	return accessToken, refreshToken, nil
+}
+
+// CreateAccount creates a new Admin, Merchant, or Mitra account (Super Admin only).
+func (s *Service) CreateAccount(ctx context.Context, fullName, email, password string, role model.UserRole) (*model.User, error) {
+	if role != model.RoleAdmin && role != model.RoleMerchant && role != model.RoleMitra {
+		return nil, errors.New("Role tidak valid. Hanya admin, merchant, dan mitra yang dapat dibuat")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &model.User{
+		FullName:     fullName,
+		Email:        email,
+		PasswordHash: string(hashed),
+		Role:         role,
+		AuthProvider: model.AuthProviderLocal,
+		CreatedAt:    time.Now(),
+	}
+	if err := s.users.Create(ctx, user); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return nil, errors.New("Email sudah terdaftar")
+		}
+		return nil, err
+	}
+
+	s.logger.Info(ctx, "super admin created "+string(role)+" account: "+email)
+	return user, nil
+}
+
+// ListAccountsByRole returns all users with the given role.
+func (s *Service) ListAccountsByRole(ctx context.Context, role model.UserRole) ([]*model.User, error) {
+	return s.users.FindByRole(ctx, role)
+}
+
+// GetAccount returns a single user by ID.
+func (s *Service) GetAccount(ctx context.Context, id string) (*model.User, error) {
+	return s.users.FindByID(ctx, id)
+}
+
+// UpdateAccount updates an account's full_name and/or email.
+func (s *Service) UpdateAccount(ctx context.Context, id string, fullName, email string) (*model.User, error) {
+	update := &model.User{
+		FullName: fullName,
+		Email:    email,
+	}
+	if err := s.users.Update(ctx, id, update); err != nil {
+		return nil, err
+	}
+
+	user, err := s.users.FindByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("Akun tidak ditemukan")
+	}
+
+	s.logger.Info(ctx, "updated account "+id)
+	return user, nil
+}
+
+// DeleteAccountByAdmin permanently deletes an account (Super Admin action).
+func (s *Service) DeleteAccountByAdmin(ctx context.Context, targetID string) error {
+	return s.DeleteAccount(ctx, targetID)
+}
+
+// ResetPasswordByAdmin resets password for an account and returns the new password.
+func (s *Service) ResetPasswordByAdmin(ctx context.Context, targetID string) (string, error) {
+	user, err := s.users.FindByID(ctx, targetID)
+	if err != nil {
+		return "", errors.New("Akun tidak ditemukan")
+	}
+	newPassword := s.generateRandomPassword(10)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	if err := s.users.UpdatePassword(ctx, user.Email, string(hashed)); err != nil {
+		return "", err
+	}
+	s.logger.Info(ctx, "admin reset password for user "+user.Email)
+	return newPassword, nil
+}
+
+// SeedSuperAdmin ensures a super admin account exists. If one doesn't exist, creates it.
+func (s *Service) SeedSuperAdmin(ctx context.Context, email, password string) error {
+	if email == "" || password == "" {
+		s.logger.Info(ctx, "skipping super admin seed: SUPER_ADMIN_EMAIL or SUPER_ADMIN_PASSWORD not set")
+		return nil
+	}
+
+	_, err := s.users.FindByEmail(ctx, email)
+	if err == nil {
+		s.logger.Info(ctx, "super admin already exists: "+email)
+		return nil
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user := &model.User{
+		FullName:     "Super Admin",
+		Email:        email,
+		PasswordHash: string(hashed),
+		Role:         model.RoleSuperAdmin,
+		AuthProvider: model.AuthProviderLocal,
+		CreatedAt:    time.Now(),
+	}
+	if err := s.users.Create(ctx, user); err != nil {
+		return err
+	}
+
+	s.logger.Info(ctx, "seeded super admin account: "+email)
+	return nil
 }

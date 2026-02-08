@@ -18,7 +18,7 @@ type SijunjungData struct {
 // @Produce json
 // @Success 200 {object} APIResponse{data=SijunjungData} "Service is running"
 // @Failure 401 {object} APIErrorResponse "Unauthorized"
-// @Router /api/sijunjung [get]
+// @Router /api/user/sijunjung [get]
 func SijunjungHandler(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, http.StatusOK, "Sijunjung service is running", SijunjungData{Status: "running"})
 }
