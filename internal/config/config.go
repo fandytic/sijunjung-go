@@ -26,6 +26,8 @@ type Config struct {
 	FonnteToken         string
 	LogRetentionDays    int
 	LogCleanupInterval  time.Duration
+	SuperAdminEmail     string
+	SuperAdminPassword  string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -53,6 +55,8 @@ func Load() Config {
 		FonnteToken:         os.Getenv("FONNTE_TOKEN"),
 		LogRetentionDays:    parseInt("LOG_RETENTION_DAYS", 30),
 		LogCleanupInterval:  parseDuration("LOG_CLEANUP_INTERVAL", 24*time.Hour),
+		SuperAdminEmail:     os.Getenv("SUPER_ADMIN_EMAIL"),
+		SuperAdminPassword:  os.Getenv("SUPER_ADMIN_PASSWORD"),
 	}
 	return cfg
 }
